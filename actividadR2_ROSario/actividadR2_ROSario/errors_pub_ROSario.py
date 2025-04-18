@@ -1,5 +1,5 @@
 def main():
-    print('Hi from close_loop_control_ROSario.')
+    print('Hi from errors_pub_ROSario.')
 
 
 if __name__ == '__main__':

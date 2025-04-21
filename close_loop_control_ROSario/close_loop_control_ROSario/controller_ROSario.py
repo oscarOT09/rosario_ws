@@ -15,7 +15,7 @@ from rclpy import qos
 # Definición de la clase
 class OpenLoopCtrl(Node):
     def __init__(self):
-        super().__init__('open_loop_ctrl')
+        super().__init__('control_prueba')
 
         # Bandera para identificación de movimiento del robot
         self.robot_busy = False

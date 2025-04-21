@@ -34,6 +34,27 @@ class OpenLoopCtrl(Node):
         self.kd = 0.0
         self.prev_error = 0.0
 
+        # Variables odometria
+        ## Parámetros del sistema
+        self.X = 0.0
+        self.Y = 0.0
+        self.Th = 0.0
+        self._l = 0.18
+        self._r = 0.05
+        self._sample_time = 0.01 # s -> 10 Hz
+        ## Estado interno
+        self.first = True
+        self.start_time = 0.0
+        self.current_time = 0.0
+        self.last_time = 0.0
+        ##Variables para velocidad del robot
+        self.v_r = 0.0
+        self.v_l = 0.0
+        self.V = 0.0
+        ##Mensajes de recepción de los motores
+        self.wr = Float32()
+        self.wl = Float32()
+        
         # Publicador para el tópico /cmd_vel (comunicación con el Puzzlebot)
         self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
 
@@ -58,8 +79,11 @@ class OpenLoopCtrl(Node):
         self.state = 0  # 0: rotación, 1: movimiento lineal, 2: Reposo
         
         # Frecuencia de muestreo
-        self.timer_period = 0.1 # 10 Hz
-        self.timer = self.create_timer(self.timer_period, self.control_loop)
+        frecuencia_controlador = 100.0 # Hz -> 0.01 s
+        #self.timer_period = 0.1 # 10 Hz 
+        frecuencia_odometria = 200.0 # Hz -> 0.005 s
+        self.controller_timer = self.create_timer(1.0/frecuencia_controlador, self.control_loop)
+        self.odometry_timer = self.create_timer(1.0/frecuencia_odometria, self.odometria)
 
         self.get_logger().info('Open loop controller initialized!')
 
@@ -99,6 +123,9 @@ class OpenLoopCtrl(Node):
             # Determinación del ángulo de giro
             self.rotation_direction = np.sign(self.delta_theta)
 
+            # Cálculo de distancia de referencia
+            self.distance_ref = self.linear_speed/self.forward_time
+
             # Inicio en estado 0
             self.state = 0
             # Cambio de bandera para indicar que el robot está en movimiento
@@ -126,7 +153,7 @@ class OpenLoopCtrl(Node):
 
             # Estado de movimiento lineal
             elif self.state == 1:
-                self.linear_speed = self.pid_controller(pos_ref, pos_robot)
+                self.linear_speed = self.pid_controller(self.distance_ref, self.distance_robot)
                 twist.linear.x = self.linear_speed
                 self.get_logger().info(f'Moving {self.forward_time} at {self.linear_speed} m/s')
                 
@@ -149,6 +176,40 @@ class OpenLoopCtrl(Node):
             # Publicación al tópico /cmd_vel
             self.cmd_vel_pub.publish(twist)
     
+    def odometria(self):
+        if self.first:
+            self.start_time = self.get_clock().now()
+            self.last_time = self.start_time
+            self.current_time = self.start_time
+            self.first = False
+            return
+        
+        """ Updates robot position based on real elapsed time """
+        # Get current time and compute dt
+        current_time = self.get_clock().now()
+        dt = (current_time - self.last_time).nanoseconds * 1e-9  # Convert to seconds
+        
+        if dt > self._sample_time:
+            #Wheel Tangential Velocities
+            self.v_r = self._r  * self.wr.data
+            self.v_l = self._r  * self.wl.data
+
+            #Robot Velocities
+            self.V = (1/2.0) * (self.v_r + self.v_l)
+            self.Omega = (1.0/self._l) * (self.v_r - self.v_l)
+
+            # Robot position in x
+            self.X += self.V * np.cos(self.Th) * dt
+            # Robot position in y
+            self.Y += self.V * np.sin(self.Th) * dt
+            # Robot theta
+            self.Th += self.Omega * dt
+
+            # Distancia total recorrida por el robot
+            self.distance_robot += abs(self.V) * dt
+
+            self.last_time = current_time
+
     def encR_callback(self, msg):
         self.wr = msg
 

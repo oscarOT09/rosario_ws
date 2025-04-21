@@ -114,7 +114,7 @@ class DeadReckoning(Node):
         self.odom_msg.pose.pose.position.z = 0.0
         self.odom_msg.pose.pose.orientation.x = q1[1]
         self.odom_msg.pose.pose.orientation.y = q1[2]
-        self.odom_msg.pose.pose.orientation.z = q1[3]
+        self.odom_msg.pose.pose.orientation.z = self.Th #q1[3]
         self.odom_msg.pose.pose.orientation.w = q1[0]
     
         self.odom_msg.twist.twist.linear.x = self.V

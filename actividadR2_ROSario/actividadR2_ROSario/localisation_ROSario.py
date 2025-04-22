@@ -44,7 +44,7 @@ class DeadReckoning(Node):
         self.wl = Float32()
         self.odom_msg = Odometry()
 
-        # Subscriptions
+        # Subscriptions de los encoder
         self.sub_encR = self.create_subscription(Float32,'VelocityEncR',self.encR_callback,qos.qos_profile_sensor_data)
         self.sub_encL = self.create_subscription(Float32,'VelocityEncL',self.encL_callback,qos.qos_profile_sensor_data)
         
@@ -149,3 +149,19 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -103,7 +103,6 @@ class DeadReckoning(Node):
 
     def publish_odometry(self):
         """ Publishes odometry message with updated state """
-        q1 = transforms3d.euler.euler2quat(0, 0, self.Th)
 
         self.odom_msg.header.stamp = self.get_clock().now().to_msg()
         self.odom_msg.header.frame_id = 'odom'
@@ -112,10 +111,7 @@ class DeadReckoning(Node):
         self.odom_msg.pose.pose.position.x = self.X
         self.odom_msg.pose.pose.position.y = self.Y
         self.odom_msg.pose.pose.position.z = 0.0
-        self.odom_msg.pose.pose.orientation.x = q1[1]
-        self.odom_msg.pose.pose.orientation.y = q1[2]
-        self.odom_msg.pose.pose.orientation.z = self.Th #q1[3]
-        self.odom_msg.pose.pose.orientation.w = q1[0]
+        self.odom_msg.pose.pose.orientation.z = self.Th
     
         self.odom_msg.twist.twist.linear.x = self.V
         self.odom_msg.twist.twist.angular.z = self.Omega

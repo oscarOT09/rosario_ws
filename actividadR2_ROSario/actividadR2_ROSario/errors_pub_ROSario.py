@@ -1,7 +1,11 @@
 # Actividad R_2. Cálculo del error de un robot móvil diferencial
 # Equipo ROSario
 
-# 1. Crear un nodo para calcular la localización del robot mediante los datos de los encoders.
+'''
+2. Crear un nodo para publicar el cálculo de los errores 𝑒𝑑 y 𝑒𝜃 del robot.
+- Establezca un objetivo, y conduzca el robot alrededor, comprobando que el ángulo a el objetivo y la distancia desde el objetivo se actualizan correctamente.
+- Recuerde que todos los ángulos deben estar dentro de un círculo.
+'''
 
 import rclpy
 import transforms3d
@@ -13,23 +17,21 @@ from rclpy.node import Node
 from std_msgs.msg import Float32
 from nav_msgs.msg import Odometry
 
+from rcl_interfaces.msg import SetParametersResult
 
 class DeadReckoning(Node):
 
     def __init__(self):
-        super().__init__('dead_reckoning')
+        super().__init__('errors_pub')
 
         #Parametros 
-        self.declare_parameter('distancia_obj', 0)
-        self.declare_parameter('theta_obj', 0)
+        self.declare_parameter('distancia_obj', 0.0)
+        self.declare_parameter('theta_obj', 0.0)
 
         self.distancia_obj = self.get_parameter('distancia_obj').value
         self.theta_obj = self.get_parameter('theta_obj').value
 
-        #Se verifica que el ángulo este detro de un circulo 
-        if (abs(self.theta_obj) > 360):
-             self.get_logger().info(f" n o")
-        #return 
+        self.distance_robot = 0.0
 
         #Set the parameters of the system
         self.X = 0.0
@@ -68,8 +70,35 @@ class DeadReckoning(Node):
         # Timer to update kinematics at ~100Hz
         self.timer = self.create_timer(1.0 / self.rate, self.run)  # 100 Hz
 
-        self.get_logger().info("Localisation Node Started.")
+        # Parameter Callback
+        self.add_on_set_parameters_callback(self.parameters_callback)
 
+        self.get_logger().info("Errors Publisher Node Started.")
+
+    def parameters_callback(self, params):
+        for param in params:
+            #system gain parameter check
+            if param.name == "distancia_obj":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("Invalid goal distance! It just cannot be negative.")
+                    return SetParametersResult(successful=False, reason="Goal distance cannot be negative")
+                else:
+                    self.distancia_obj = param.value  # Update internal variable
+                    self.get_logger().info(f"Goal distance updated to {self.distancia_obj}")
+            elif param.name == "theta_obj":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("Invalid goal angle! It just cannot be negative.")
+                    return SetParametersResult(successful=False, reason="Goal angle cannot be negative")
+                elif (abs(param.value) > 360):
+                    self.get_logger().warn("Invalid goal angle! It has to be in the range [0, 2*pi].")
+                    return SetParametersResult(successful=False, reason="Goal distance cannot out of a circle range")
+                else:
+                    self.theta_obj = param.value  # Update internal variable
+                    self.get_logger().info(f"Goal theta updated to {self.theta_obj}")
+        return SetParametersResult(successful=True)
+    
     # Callbacks
     def encR_callback(self, msg):
         self.wr = msg
@@ -106,7 +135,7 @@ class DeadReckoning(Node):
             # Robot position in y
             self.Y += self.V * np.sin(self.Th) * dt
             # Robot theta
-            if (abs(self.th) > 360):
+            if (abs(self.Th) > 360):
                 self.Th = 0
             else: 
                 self.Th += self.Omega * dt
@@ -123,13 +152,14 @@ class DeadReckoning(Node):
 
     def publish_errors(self):
         """Publishes errors message with updated state """
-        error_dist = self.distancia_obj- self.distance_robot 
-        error_theta = self.theta_obj - self.Th
+        error_dist = Float32()
+        error_dist.data = self.distancia_obj - self.distance_robot
+
+        error_theta = Float32()
+        error_theta.data = np.rad2deg(np.deg2rad(self.theta_obj) - self.Th)
 
         self.e_dist_pub.publish(error_dist)
         self.e_theta_pub.publish(error_theta)
-
-
 
     def publish_odometry(self):
         """ Publishes odometry message with updated state """

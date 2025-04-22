@@ -21,7 +21,8 @@ setup(
     entry_points={
         'console_scripts': [
             'controller_ROSario = close_loop_control_ROSario.controller_ROSario:main',
-            'pathGenerator_ROSario = close_loop_control_ROSario.pathGenerator_ROSario:main'
+            'pathGenerator_ROSario = close_loop_control_ROSario.pathGenerator_ROSario:main',
+            'controlador_prueba = close_loop_control_ROSario.controlador_prueba:main'
         ],
     },
 )

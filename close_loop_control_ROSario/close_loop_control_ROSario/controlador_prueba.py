@@ -17,14 +17,19 @@ class OpenLoopCtrl(Node):
     def __init__(self):
         super().__init__('open_loop_ctrl')
 
-        self.dist_ref = 0.0
+        self.distance_ref = 2.0
+        self.distance_robot = 0.0
+        self.ang_ref = np.deg2rad(90.0)
+
         # Bandera para identificación de movimiento del robot
         self.robot_busy = False
         
         # Variables para el controlador
+        # PID motor: kp = 0.10, ki = 0.0857, kd = 0.00455
         self.kp = 0.0
         self.ki = 0.0
         self.kd = 0.0
+        self.integral = 0.0
         self.prev_error = 0.0
 
         # Variables odometria
@@ -89,25 +94,31 @@ class OpenLoopCtrl(Node):
 
         # Estado de movimiento rotacional
         if self.state == 0:
-            twist.angular.z = self.rotation_direction * self.angular_speed
-            self.get_logger().info(f'Rotating {np.rad2deg(self.delta_theta)}°, {self.rotate_time} s')
+            self.get_logger().info(f"Angulo Robot: {np.rad2deg(self.Th)}")
+            output = self.pid_controller(self.ang_ref, self.Th)
+            self.angular_speed = self.saturate_with_deadband(output, 0.29, 4.0)
+            twist.angular.z = self.angular_speed
+            #self.get_logger().info(f'PID ANG: {self.angular_speed}')
             
-            if elapsed >= self.rotate_time:
+            if self.angular_speed == 0.0:
                 self.state = 1
-                self.state_start_time = now
                 self.get_logger().info('Rotation complete. Moving forward...')
 
         # Estado de movimiento lineal
         elif self.state == 1:
-            self.linear_speed = self.pid_controller(self.distance_ref, self.distance_robot)
+            output = self.pid_controller(self.distance_ref, self.distance_robot)
+            self.linear_speed = self.saturate_with_deadband(output, 0.025, 0.38)
             twist.linear.x = self.linear_speed
-            self.get_logger().info(f'Moving {self.forward_time} at {self.linear_speed} m/s')
+            #self.get_logger().info(f'PID LIN: {self.angular_speed}')
             
-            if elapsed >= self.forward_time:
+            if self.linear_speed == 0.0:
                 self.state = 2
-                self.state_start_time = now
+                self.robot_busy = False
+                self.linear_speed = 0.0
+                self.forward_time = 0.0
+
                 self.get_logger().info('Forward motion complete. Stopping...')
-        
+        '''        
         # Estado de reposo
         elif self.state == 2:
             twist.linear.x = 0.0
@@ -118,8 +129,10 @@ class OpenLoopCtrl(Node):
             self.linear_speed = 0.0
             self.forward_time = 0.0
             self.get_logger().info('Trajectory segment complete.')
+        '''
 
         # Publicación al tópico /cmd_vel
+        self.get_logger().info(f'Publishing Twist: linear.x={twist.linear.x}, angular.z={twist.angular.z}')
         self.cmd_vel_pub.publish(twist)
     
     def odometria(self):
@@ -162,22 +175,37 @@ class OpenLoopCtrl(Node):
     def encL_callback(self, msg):
         self.wl = msg
 
+    def saturate_with_deadband(self, output, min_val, max_val):
+        if abs(output) < min_val:
+            return 0.0
+        elif output > 0:
+            return min(output, max_val)
+        else:
+            return max(output, -max_val)
+
+
     def pid_controller(self, ref, real):
         error = ref - real
-
+        self.get_logger().info(f"Error PID {self.state}: {error}")
+                               
         if self.state == 0:
-            self.kp = 0.0
-            self.ki = 0.0
-            self.kd = 0.0
+            self.kp = 0.5
+            self.ki = 0.01
+            self.kd = 0.02
         elif self.state == 1:
-            self.kp = 0.0
-            self.ki = 0.0
-            self.kd = 0.0
-        
-        integral += error * self.dt
-        derivative = (error - self.previous_error) / self.dt
+            self.kp = 1.0
+            self.ki = 0.05
+            self.kd = 0.02
 
-        output = (self.kp * error) + (self.ki * integral) + (self.kd * derivative)
+        if self.state == 0 and abs(error) <= np.deg2rad(2.5):
+            output = 0.0
+        elif self.state == 1 and abs(error) <= 0.02:
+            output = 0.0
+        else:
+            self.integral += error * 0.01
+            derivative = (error - self.prev_error) / 0.01
+
+            output = (self.kp * error) + (self.ki * self.integral) + (self.kd * derivative)
 
         self.prev_error = error
 

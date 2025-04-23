@@ -4,12 +4,13 @@
 import rclpy
 from rclpy.node import Node
 import numpy as np
+import transforms3d
 
 from geometry_msgs.msg import Twist
 #from rcl_interfaces.msg import SetParametersResult
 from std_msgs.msg import Float32
-from rosario_path.msg import RosarioPath
-from rclpy import qos
+from nav_msgs.msg import Odometry # from rosario_path.msg import RosarioPath
+from rclpy.qos import qos_profile_sensor_data
 
 
 # Definición de la clase
@@ -17,163 +18,126 @@ class OpenLoopCtrl(Node):
     def __init__(self):
         super().__init__('open_loop_ctrl')
 
-        self.distance_ref = 2.0
-        self.distance_robot = 0.0
-        self.ang_ref = np.deg2rad(90.0)
+        self.X_ref = 1.0
+        self.Y_ref = 1.0
+
+        self.pose_robot = 0.0
+        
+        self.ang_ref = 0.0
 
         # Bandera para identificación de movimiento del robot
-        self.robot_busy = False
+        self.robot_busy = True
         
         # Variables para el controlador
         # PID motor: kp = 0.10, ki = 0.0857, kd = 0.00455
         self.kp = 0.0
         self.ki = 0.0
         self.kd = 0.0
-        self.integral = 0.0
-        self.prev_error = 0.0
+
+        self.integral_lin = 0.0
+        self.prev_error_lin = 0.0
+        self.integral_ang = 0.0
+        self.prev_error_ang = 0.0
 
         # Variables odometria
-        ## Parámetros del sistema
-        self.X = 0.0
-        self.Y = 0.0
-        self.Th = 0.0
-        self._l = 0.18
-        self._r = 0.05
-        self._sample_time = 0.01 # s -> 10 Hz
-        ## Estado interno
-        self.first = True
-        self.start_time = 0.0
-        self.current_time = 0.0
-        self.last_time = 0.0
-        ## Variables para velocidad del robot
-        self.v_r = 0.0
-        self.v_l = 0.0
-        self.V = 0.0
-        ## Mensajes de recepción de los motores
-        self.wr = Float32()
-        self.wl = Float32()
+        self.X_robot = 0.0
+        self.Y_robot = 0.0
+        self.Th_robot = 0.0
+        self.V_robot = 0.0
+        self.Omega_Robot = 0.0
+
+        self.odom_msg = Odometry()
+        self.twist = Twist()
         
+        # Queue poses
+        self.path_queue = []
+
         # Publicador para el tópico /cmd_vel (comunicación con el Puzzlebot)
         self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
 
-        # Suscripciones
-        self.sub_encR = self.create_subscription(Float32,'VelocityEncR',self.encR_callback,qos.qos_profile_sensor_data)
-        self.sub_encL = self.create_subscription(Float32,'VelocityEncL',self.encL_callback,qos.qos_profile_sensor_data)
-
+        ### SUSCRIPCION A ODOM
+        
+        self.odom_sub = self.create_subscription(Odometry, 'odom', self.odometria, qos_profile_sensor_data)
         # Velocidad lineal (valor dependiente del valor enviado por el nodo Path)
         self.linear_speed = 0.0 # m/s
 
         # Velocidad angular (constante para asegurar el movimiento constante del robot)
-        self.angular_speed = 1.0  # rad/s
-
-        # Tiempo de movimiento lineal (valor dependiente del valor enviado por el nodo Path)
-        self.forward_time = 0.0
-
-        # Tiempo de movimiento rotacional (calculado en control_loop)
-        self.rotate_time = 0.0
+        self.angular_speed = 0.0  # rad/s
 
         # Estado
         self.state = 0  # 0: rotación, 1: movimiento lineal, 2: Reposo
         
         # Frecuencia de muestreo
-        frecuencia_controlador = 100.0 # Hz -> 0.01 s
+        frecuencia_controlador = 200.0 # Hz -> 0.01 s
         # self.timer_period = 0.1 # 10 Hz 
-        frecuencia_odometria = 250.0 # Hz -> 0.005 s
         self.controller_timer = self.create_timer(1.0/frecuencia_controlador, self.control_loop)
-        self.odometry_timer = self.create_timer(1.0/frecuencia_odometria, self.odometria)
 
         self.get_logger().info('Open loop controller initialized!')
 
     def control_loop(self):
-        #self.state_start_time = self.get_clock().now()
-        #now = self.get_clock().now()
-        #elapsed = (now - self.state_start_time).nanoseconds * 1e-9
+        if self.robot_busy:
+            if self.state == 0:
+                ###OBTENER EL ANGULO ENTRE EL ROBOT Y EL OBJETIVO
+                # Calcular ángulo objetivo entre posición actual y objetivo
+                dx = self.X_ref - self.X_robot
+                dy = self.Y_ref - self.Y_robot
+                self.ang_ref = np.arctan2(dy, dx)  # ángulo deseado en radianes
+                self.get_logger().info(f"Angulo ref: {np.rad2deg(self.ang_ref)}°")
 
-        # Creación de mensaje Geometry Twist
-        twist = Twist()
-
-        # Estado de movimiento rotacional
-        if self.state == 0:
-            self.get_logger().info(f"Angulo Robot: {np.rad2deg(self.Th)}")
-            output = self.pid_controller(self.ang_ref, self.Th)
-            self.angular_speed = self.saturate_with_deadband(output, 0.29, 4.0)
-            twist.angular.z = self.angular_speed
-            #self.get_logger().info(f'PID ANG: {self.angular_speed}')
+                # Estado de movimiento rotacional
+                output_angular = self.pid_controller_angular(self.ang_ref, self.Th_robot)
+                self.angular_speed = self.saturate_with_deadband(output_angular, 0.29, 3.0)
+                self.twist.angular.z = self.angular_speed
+                #self.get_logger().info(f'PID ANG: {self.angular_speed}')
+                if self.angular_speed == 0.0:
+                    self.state = 1
+                    self.get_logger().info('Angle achieved.')    
             
-            if self.angular_speed == 0.0:
-                self.state = 1
-                self.get_logger().info('Rotation complete. Moving forward...')
+            elif self.state == 1:
+                ###CALCULAR LA DISTANCIA ENTRE PUNTOS
+                cords_robot = [(self.X_robot), (self.Y_robot)]
+                cords_obj = [(self.X_ref), (self.Y_ref)]
 
-        # Estado de movimiento lineal
-        elif self.state == 1:
-            output = self.pid_controller(self.distance_ref, self.distance_robot)
-            self.linear_speed = self.saturate_with_deadband(output, 0.025, 0.38)
-            twist.linear.x = self.linear_speed
-            #self.get_logger().info(f'PID LIN: {self.angular_speed}')
-            
-            if self.linear_speed == 0.0:
-                self.state = 2
-                self.robot_busy = False
-                self.linear_speed = 0.0
-                self.forward_time = 0.0
+                # Estado de movimiento lineal
+                output_lineal = self.pid_controller_lineal(cords_obj, cords_robot)
+                self.linear_speed = self.saturate_with_deadband(output_lineal, 0.025, 0.38)
+                self.twist.linear.x = self.linear_speed
+                #self.get_logger().info(f'PID LIN: {self.angular_speed}')
+                if self.linear_speed == 0.0:
+                    self.state = 2
+                    self.get_logger().info('Distance achieved.')
 
-                self.get_logger().info('Forward motion complete. Stopping...')
-        '''        
-        # Estado de reposo
-        elif self.state == 2:
-            twist.linear.x = 0.0
-            twist.angular.z = 0.0
-            self.get_logger().info('Stopped')
+            elif self.state == 2:
+                self.robot_busy = False   
+                self.get_logger().info('Objective achieved. Stopping...')
 
-            self.robot_busy = False
-            self.linear_speed = 0.0
-            self.forward_time = 0.0
-            self.get_logger().info('Trajectory segment complete.')
-        '''
-
-        # Publicación al tópico /cmd_vel
-        self.get_logger().info(f'Publishing Twist: linear.x={twist.linear.x}, angular.z={twist.angular.z}')
-        self.cmd_vel_pub.publish(twist)
+            # Publicación al tópico /cmd_vel
+            #self.get_logger().info(f'Publishing Twist: linear.x={self.twist.linear.x}, angular.z={self.twist.angular.z}')
+            self.cmd_vel_pub.publish(self.twist)
     
-    def odometria(self):
-        if self.first:
-            self.start_time = self.get_clock().now()
-            self.last_time = self.start_time
-            self.current_time = self.start_time
-            self.first = False
-            return
+    def wrap_to_Pi(self,theta):
+        result = np.fmod((theta + np.pi), (2 * np.pi))
+
+        if(result < 0):
+            result += 2*np.pi
         
-        """ Updates robot position based on real elapsed time """
-        # Get current time and compute dt
-        current_time = self.get_clock().now()
-        self.dt = (current_time - self.last_time).nanoseconds * 1e-9  # Convert to seconds
-        
-        if self.dt > self._sample_time:
-            #Wheel Tangential Velocities
-            self.v_r = self._r  * self.wr.data
-            self.v_l = self._r  * self.wl.data
+        return result - np.pi
 
-            #Robot Velocities
-            self.V = (1/2.0) * (self.v_r + self.v_l)
-            self.Omega = (1.0/self._l) * (self.v_r - self.v_l)
+    def odometria(self, msg):
+        self.odom_msg = msg
 
-            # Robot position in x
-            self.X += self.V * np.cos(self.Th) * self.dt
-            # Robot position in y
-            self.Y += self.V * np.sin(self.Th) * self.dt
-            # Robot theta
-            self.Th += self.Omega * self.dt
+        self.X_robot = msg.pose.pose.position.x
+        self.Y_robot = msg.pose.pose.position.y
+        #self.Th_robot = msg.pose.pose.orientation.z
 
-            # Distancia total recorrida por el robot
-            self.distance_robot += abs(self.V) * self.dt
+        q = msg.pose.pose.orientation
+        quaternion = [q.w, q.x, q.y, q.z]
+        roll, pitch, yaw = transforms3d.euler.quat2euler(quaternion)
+        self.Th_robot = self.wrap_to_Pi(yaw)
+        self.get_logger().info(f"Angulo recibido: {np.rad2deg(self.Th_robot)}")
 
-            self.last_time = current_time
-
-    def encR_callback(self, msg):
-        self.wr = msg
-
-    def encL_callback(self, msg):
-        self.wl = msg
+        self.V_robot = msg.twist.twist.linear.x
+        self.Omega_Robot = msg.twist.twist.angular.z 
 
     def saturate_with_deadband(self, output, min_val, max_val):
         if abs(output) < min_val:
@@ -183,29 +147,41 @@ class OpenLoopCtrl(Node):
         else:
             return max(output, -max_val)
 
+    def pid_controller_lineal(self, ref, real):
+        error = np.linalg.norm(np.array(ref) - np.array(real)) # ref - real
+        self.get_logger().info(f"Error PID Lineal: {error}")
+        
+        self.kp = 1.0
+        self.ki = 0.05
+        self.kd = 0.02
 
-    def pid_controller(self, ref, real):
-        error = ref - real
-        self.get_logger().info(f"Error PID {self.state}: {error}")
-                               
-        if self.state == 0:
-            self.kp = 0.5
-            self.ki = 0.01
-            self.kd = 0.02
-        elif self.state == 1:
-            self.kp = 1.0
-            self.ki = 0.05
-            self.kd = 0.02
-
-        if self.state == 0 and abs(error) <= np.deg2rad(2.5):
-            output = 0.0
-        elif self.state == 1 and abs(error) <= 0.02:
+        if abs(error) <= 0.02:
             output = 0.0
         else:
-            self.integral += error * 0.01
-            derivative = (error - self.prev_error) / 0.01
+            self.integral_lin += error * 0.01
+            derivative = (error - self.prev_error_lin) / 0.01
 
-            output = (self.kp * error) + (self.ki * self.integral) + (self.kd * derivative)
+            output = (self.kp * error) + (self.ki * self.integral_lin) + (self.kd * derivative)
+
+        self.prev_error = error
+
+        return output
+    
+    def pid_controller_angular(self, ref, real):
+        error = self.wrap_to_Pi(ref - real)
+        self.get_logger().info(f"Error PID Angular: {np.rad2deg(error)}")
+                               
+        self.kp = 0.5
+        self.ki = 0.01
+        self.kd = 0.02
+
+        if abs(error) <= np.deg2rad(2.5):
+            output = 0.0
+        else:
+            self.integral_ang += error * 0.01
+            derivative = (error - self.prev_error_ang) / 0.01
+
+            output = (self.kp * error) + (self.ki * self.integral_ang) + (self.kd * derivative)
 
         self.prev_error = error
 

@@ -22,8 +22,9 @@ class DeadReckoning(Node):
 
         self._l = 0.18
         self._r = 0.05
-        self._sample_time = 0.01
+        
         self.rate = 200.0
+        self._sample_time = 1.0/self.rate
                     
         # Internal state
         self.first = True
@@ -51,34 +52,10 @@ class DeadReckoning(Node):
         # Timer to update kinematics at ~100Hz
         self.timer = self.create_timer(1.0 / self.rate, self.run)  # 100 Hz
 
-        # Parameter Callback
-        self.add_on_set_parameters_callback(self.parameters_callback)
 
         self.get_logger().info("Odometry Node Started.")
 
-    def parameters_callback(self, params):
-        for param in params:
-            #system gain parameter check
-            if param.name == "distancia_obj":
-                #check if it is negative
-                if (param.value < 0.0):
-                    self.get_logger().warn("Invalid goal distance! It just cannot be negative.")
-                    return SetParametersResult(successful=False, reason="Goal distance cannot be negative")
-                else:
-                    self.distancia_obj = param.value  # Update internal variable
-                    self.get_logger().info(f"Goal distance updated to {self.distancia_obj}")
-            elif param.name == "theta_obj":
-                #check if it is negative
-                if (param.value < 0.0):
-                    self.get_logger().warn("Invalid goal angle! It just cannot be negative.")
-                    return SetParametersResult(successful=False, reason="Goal angle cannot be negative")
-                elif (abs(param.value) > 360):
-                    self.get_logger().warn("Invalid goal angle! It has to be in the range [0, 2*pi].")
-                    return SetParametersResult(successful=False, reason="Goal distance cannot out of a circle range")
-                else:
-                    self.theta_obj = param.value  # Update internal variable
-                    self.get_logger().info(f"Goal theta updated to {self.theta_obj}")
-        return SetParametersResult(successful=True)
+    
     
     # Callbacks
     def encR_callback(self, msg):
@@ -111,15 +88,14 @@ class DeadReckoning(Node):
             self.V = (1/2.0) * (self.v_r + self.v_l)
             self.Omega = (1.0/self._l) * (self.v_r - self.v_l)
 
+            # Robot theta
+            self.Th += self.Omega * dt
+            
             # Robot position in x
             self.X += self.V * np.cos(self.Th) * dt
             # Robot position in y
             self.Y += self.V * np.sin(self.Th) * dt
-            # Robot theta
-            if (abs(self.Th) > 360):
-                self.Th = 0
-            else: 
-                self.Th += self.Omega * dt
+            
 
             self.last_time = current_time
 

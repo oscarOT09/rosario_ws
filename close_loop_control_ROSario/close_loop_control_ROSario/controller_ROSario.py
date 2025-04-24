@@ -1,22 +1,58 @@
-# Nodo controlador | Etapa 2 - Challenge 3
+# Nodo de control | Etapa 2 - Challenge 2
 
 # Importaciones necesarias
 import rclpy
 from rclpy.node import Node
 import numpy as np
+import transforms3d
 
 from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
+from rclpy.qos import qos_profile_sensor_data
 #from rcl_interfaces.msg import SetParametersResult
-from std_msgs.msg import Float32
 from rosario_path.msg import RosarioPath
-from rclpy import qos
-
 
 # Definición de la clase
 class OpenLoopCtrl(Node):
     def __init__(self):
-        super().__init__('control_prueba')
+        super().__init__('close_loop_ctrl')
 
+        # Posiciones objetivo
+        self.X_ref = 0.0
+        self.Y_ref = 0.0
+        self.dist_ref = 0.0
+        self.ang_ref = 0.0
+
+        # Estados actuales
+        self.X_robot = 0.0
+        self.Y_robot = 0.0
+        self.Th_robot = 0.0
+
+        self.dist_robot = 0.0
+
+        self.prev_X_robot = 0.0
+        self.prev_Y_robot = 0.0
+
+        self.prev_goal_X = 0.0
+        self.prev_goal_Y = 0.0
+
+        # PID angular
+        self.kp_ang = 0.25
+        self.ki_ang = 0.005
+        self.kd_ang = 0.002
+        self.integral_ang = 0.0
+        self.prev_error_ang = 0.0
+
+        # PID lineal
+        self.kp_lin = 0.5
+        self.ki_lin = 0.01
+        self.kd_lin = 0.005
+        self.integral_lin = 0.0
+        self.prev_error_lin = 0.0
+
+        # Velocidades
+        self.twist = Twist()
+        
         # Bandera para identificación de movimiento del robot
         self.robot_busy = False
         
@@ -24,44 +60,16 @@ class OpenLoopCtrl(Node):
         self.path_queue = []
 
         # Inicialización de posiciones
-        self.prev_pose = np.array([0.0, 0.0])
-        self.curr_pose = np.array([0.0, 0.0])
-        self.next_pose = np.array([0.0, 0.0])
+        #self.prev_pose = np.array([0.0, 0.0])
+        #self.curr_pose = np.array([0.0, 0.0])
+        #self.next_pose = np.array([0.0, 0.0])
 
-        # Variables para el controlador
-        self.kp = 0.0
-        self.ki = 0.0
-        self.kd = 0.0
-        self.prev_error = 0.0
-
-        # Variables odometria
-        ## Parámetros del sistema
-        self.X = 0.0
-        self.Y = 0.0
-        self.Th = 0.0
-        self._l = 0.18
-        self._r = 0.05
-        self._sample_time = 0.01 # s -> 10 Hz
-        ## Estado interno
-        self.first = True
-        self.start_time = 0.0
-        self.current_time = 0.0
-        self.last_time = 0.0
-        ##Variables para velocidad del robot
-        self.v_r = 0.0
-        self.v_l = 0.0
-        self.V = 0.0
-        ##Mensajes de recepción de los motores
-        self.wr = Float32()
-        self.wl = Float32()
-        
         # Publicador para el tópico /cmd_vel (comunicación con el Puzzlebot)
         self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
 
-        # Suscripciones
-        self.pose_sub = self.create_subscription(RosarioPath, 'pose', self.path_callback, 10)
-        self.sub_encR = self.create_subscription(Float32,'VelocityEncR',self.encR_callback,qos.qos_profile_sensor_data)
-        self.sub_encL = self.create_subscription(Float32,'VelocityEncL',self.encL_callback,qos.qos_profile_sensor_data)
+        # Suscriptor para el tópico /pose
+        self.pose_sub = self.create_subscription(RosarioPath, 'pose', self.listener_callback, 10)
+        self.odom_sub = self.create_subscription(Odometry, 'odom', self.odometria, qos_profile_sensor_data)
 
         # Velocidad lineal (valor dependiente del valor enviado por el nodo Path)
         self.linear_speed = 0.0 # m/s
@@ -79,15 +87,23 @@ class OpenLoopCtrl(Node):
         self.state = 0  # 0: rotación, 1: movimiento lineal, 2: Reposo
         
         # Frecuencia de muestreo
-        frecuencia_controlador = 100.0 # Hz -> 0.01 s
-        #self.timer_period = 0.1 # 10 Hz 
-        frecuencia_odometria = 200.0 # Hz -> 0.005 s
-        self.controller_timer = self.create_timer(1.0/frecuencia_controlador, self.control_loop)
-        self.odometry_timer = self.create_timer(1.0/frecuencia_odometria, self.odometria)
+        frecuencia_controlador = 200.0
+        self.dt_pid = 1.0/200.0
+        self.controller_timer = self.create_timer(1.0 / frecuencia_controlador, self.control_loop)
 
-        self.get_logger().info('Open loop controller initialized!')
+        self.get_logger().info('Close loop controller initialized!')
+
+    def wrap_to_Pi(self, angle):
+        result = np.fmod((angle + np.pi), (2*np.pi))
+        if result < 0:
+            result += 2 * np.pi
+        return result - np.pi
 
     def delta_angle(self, prev, current, next_):
+        prev = np.array(prev)
+        current = np.array(current)
+        next_ = np.array(next_)
+
         v1 = current - prev
         v2 = next_ - current
 
@@ -98,135 +114,134 @@ class OpenLoopCtrl(Node):
         delta = (delta + np.pi) % (2 * np.pi) - np.pi  # Normalización del ágnulo entre -pi y pi
         return delta  # en radianes
 
-    def path_callback(self, msg):
+    def pid_controller_angular(self, error):
+        self.integral_ang += error * self.dt_pid
+        derivative = (error - self.prev_error_ang) / self.dt_pid
+        output = self.kp_ang * error + self.ki_ang * self.integral_ang + self.kd_ang * derivative
+        self.prev_error_ang = error
+        return output
+
+    def pid_controller_lineal(self, error):
+        self.integral_lin += error * self.dt_pid
+        derivative = (error - self.prev_error_lin) / self.dt_pid
+        output = self.kp_lin * error + self.ki_lin * self.integral_lin + self.kd_lin * derivative
+        self.prev_error_lin = error
+        return output
+
+    def saturate_with_deadband(self, output, min_val, max_val):
+        if abs(output) < min_val:
+            return min_val
+        elif output > 0:
+            return min(output,max_val)
+        else:
+            return max(output, -max_val)
+        
+    def listener_callback(self, msg):
         # Descomposición para almacenamiento local en variables 
         new_point = np.array([msg.path.position.x, msg.path.position.y])
         velocity = msg.velocity
         duration = msg.time
 
         # Guardado en quque
-        self.path_queue.append((new_point, velocity, duration))
+        self.path_queue.append((new_point))
         self.get_logger().info(f'New trayectory: ({msg.path.position.x}, {msg.path.position.y})')
+    
+    def odometria(self, msg):
+        self.X_robot = msg.pose.pose.position.x
+        self.Y_robot = msg.pose.pose.position.y
+
+        q = msg.pose.pose.orientation
+        quaternion = [q.w, q.x, q.y, q.z]
+        _, _, yaw = transforms3d.euler.quat2euler(quaternion)
+        self.Th_robot = self.wrap_to_Pi(yaw)
 
     def control_loop(self):
         # Si el robot no está en movimiento y hay elementos faltantes en la queue, se realizan los calculos necesarios para efectuar la siguiente trayectoria 
         if not self.robot_busy and self.path_queue:
-            # Actualziación de posiciones de referencia
-            self.prev_pose = self.curr_pose.copy()
-            self.curr_pose = self.next_pose.copy()
-            self.next_pose, self.linear_speed, self.forward_time = self.path_queue.pop(0)
+        #    self.prev_pose = self.curr_pose
+        #    self.curr_pose = self.next_pose
+            self.X_ref, self.Y_ref = self.path_queue.pop(0) #    self.next_pose = self.path_queue.pop(0)
+            
+            #self.X_ref, self.Y_ref = self.next_pose
+            self.dist_ref = np.linalg.norm([self.X_ref - self.prev_goal_X, self.Y_ref - self.prev_goal_Y])
+            #self.dist_ref = self.dist_ref * 0.9
 
-            # Calculo del ángulo relativo
-            self.delta_theta = self.delta_angle(self.prev_pose, self.curr_pose, self.next_pose)
-            # Calculo de tiempo de rotación en base al nuevo ángulo relativo
-            self.rotate_time = round(abs(self.delta_theta)*0.85, 2) / self.angular_speed
-            # Determinación del ángulo de giro
-            self.rotation_direction = np.sign(self.delta_theta)
+            dx = self.X_ref - self.prev_goal_X
+            dy = self.Y_ref - self.prev_goal_Y
+            self.ang_ref = np.arctan2(dy, dx) #self.delta_angle(self.prev_pose, self.curr_pose, self.next_pose)
+            #self.ang_ref = self.ang_ref * 0.8
 
-            # Cálculo de distancia de referencia
-            self.distance_ref = self.linear_speed/self.forward_time
-
-            # Inicio en estado 0
-            self.state = 0
-            # Cambio de bandera para indicar que el robot está en movimiento
+            self.prev_goal_X = self.X_ref
+            self.prev_goal_Y = self.Y_ref
+            
             self.robot_busy = True
-
-            self.state_start_time = self.get_clock().now()
+            self.state = 0
+            self.get_logger().info(f'Nuevo objetivo: ({self.X_ref}, {self.Y_ref}) | {self.dist_ref} m | {np.rad2deg(self.ang_ref)}°')
 
         # Si el robot está en movimiento, se trabaja entre los estados
         if self.robot_busy:
-            now = self.get_clock().now()
-            elapsed = (now - self.state_start_time).nanoseconds * 1e-9
-
-            # Creación de mensaje Geometry Twist
-            twist = Twist()
-
-            # Estado de movimiento rotacional
             if self.state == 0:
-                twist.angular.z = self.rotation_direction * self.angular_speed
-                self.get_logger().info(f'Rotating {np.rad2deg(self.delta_theta)}°, {self.rotate_time} s')
                 
-                if elapsed >= self.rotate_time:
-                    self.state = 1
-                    self.state_start_time = now
-                    self.get_logger().info('Rotation complete. Moving forward...')
+                #self.get_logger().info(f"Ang_robot: {np.rad2deg(self.Th_robot)} | Ang obj: {np.rad2deg(self.ang_ref)}")
 
-            # Estado de movimiento lineal
+                error = self.wrap_to_Pi(self.ang_ref - self.Th_robot)
+                self.get_logger().info(f"Error angular: {self.ang_ref}-{self.Th_robot}={np.rad2deg(error):.2f}°")
+
+                if abs(error) < np.deg2rad(10.0):
+                    #self.get_logger().info("LLEGO A LIM. ERROR ANGULAR")
+                    self.twist.angular.z = 0.0
+                    
+                    self.integral_ang = 0.0
+                    self.prev_error_ang = 0.0
+
+                    self.state = 1
+                    #self.get_logger().info(f"Estado dese angular: {self.state}.")
+                    self.get_logger().info("Rotación completada.")
+                    self.cmd_vel_pub.publish(self.twist)
+                else:
+                    
+                    output = self.pid_controller_angular(error)
+                    #self.get_logger().info(f"Salida PID ANGULAR: {output}")
+                    self.twist.angular.z = self.saturate_with_deadband(output, 0.29, 3.0)
+                    #self.get_logger().info(f"V.ANG: {self.twist.angular.z}")
+                    #self.twist.linear.x = 0.0
+                    self.cmd_vel_pub.publish(self.twist)
+
             elif self.state == 1:
-                self.linear_speed = self.pid_controller(self.distance_ref, self.distance_robot)
-                twist.linear.x = self.linear_speed
-                self.get_logger().info(f'Moving {self.forward_time} at {self.linear_speed} m/s')
-                
-                if elapsed >= self.forward_time:
+                # TRASLACIÓN
+                self.dist_robot += np.linalg.norm([self.X_robot - self.prev_X_robot, self.Y_robot - self.prev_Y_robot])
+                error = self.dist_ref - self.dist_robot
+                self.get_logger().info(f"Error lineal: {self.dist_ref}-{self.dist_robot}={error:.3f} m")
+                self.prev_X_robot = self.X_robot
+                self.prev_Y_robot = self.Y_robot
+
+                if error < 0.1:
+                    #self.get_logger().info("LLEGO A LIM. ERROR LINEAL")
+                    self.twist.linear.x = 0.0
                     self.state = 2
-                    self.state_start_time = now
-                    self.get_logger().info('Forward motion complete. Stopping...')
-            
-            # Estado de reposo
+                    self.dist_robot = 0.0
+                    self.integral_lin = 0.0
+                    self.prev_error_lin = 0.0
+
+                    #self.get_logger().info(f"Estado desde lineal: {self.state}.")
+                    self.get_logger().info("Traslación completada.")
+                    self.cmd_vel_pub.publish(self.twist)
+                else:
+                    output = self.pid_controller_lineal(error)
+                    #self.get_logger().info(f"Salida PID LINEAL: {output}")
+                    self.twist.linear.x = self.saturate_with_deadband(output, 0.025, 0.38)
+                    #self.get_logger().info(f"V.LIN: {self.twist.linear.x}")
+                    #self.twist.angular.z = 0.0
+                    self.cmd_vel_pub.publish(self.twist)
+
             elif self.state == 2:
-                twist.linear.x = 0.0
-                twist.angular.z = 0.0
-                self.get_logger().info('Stopped')
+                #self.twist = Twist()
+                self.twist.linear.x = 0.0
+                self.twist.angular.z = 0.0
 
                 self.robot_busy = False
-                self.linear_speed = 0.0
-                self.forward_time = 0.0
-                self.get_logger().info('Trajectory segment complete.')
-
-            # Publicación al tópico /cmd_vel
-            self.cmd_vel_pub.publish(twist)
-    
-    def odometria(self):
-        if self.first:
-            self.start_time = self.get_clock().now()
-            self.last_time = self.start_time
-            self.current_time = self.start_time
-            self.first = False
-            return
-        
-        """ Updates robot position based on real elapsed time """
-        # Get current time and compute dt
-        current_time = self.get_clock().now()
-        dt = (current_time - self.last_time).nanoseconds * 1e-9  # Convert to seconds
-        
-        if dt > self._sample_time:
-            #Wheel Tangential Velocities
-            self.v_r = self._r  * self.wr.data
-            self.v_l = self._r  * self.wl.data
-
-            #Robot Velocities
-            self.V = (1/2.0) * (self.v_r + self.v_l)
-            self.Omega = (1.0/self._l) * (self.v_r - self.v_l)
-
-            # Robot position in x
-            self.X += self.V * np.cos(self.Th) * dt
-            # Robot position in y
-            self.Y += self.V * np.sin(self.Th) * dt
-            # Robot theta
-            self.Th += self.Omega * dt
-
-            # Distancia total recorrida por el robot
-            self.distance_robot += abs(self.V) * dt
-
-            self.last_time = current_time
-
-    def encR_callback(self, msg):
-        self.wr = msg
-
-    def encL_callback(self, msg):
-        self.wl = msg
-
-    def pid_controller(self, ref, real):
-        error = ref - real
-        
-        integral = 0.0
-        derivative = 0.0
-
-        output = (self.kp * error) + (self.ki * integral) + (self.kd * derivative)
-
-        self.prev_error = error
-
-        return output
+                self.get_logger().info("Objetivo alcanzado. Esperando siguiente...")
+                self.cmd_vel_pub.publish(self.twist)
 
 # Main
 def main(args=None):

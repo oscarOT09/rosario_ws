@@ -21,6 +21,11 @@ class OpenLoopCtrl(Node):
         self.factor_dist = 1.09
         self.factor_ang = 0.8
         
+        self.max_lin_vel = 0.0
+        self.min_lin_vel = 0.0
+        self.max_ang_vel = 0.0
+        self.min_ang_vel = 0.0
+
         # Posiciones objetivo
         self.X_ref = 0.0
         self.Y_ref = 0.0
@@ -123,8 +128,10 @@ class OpenLoopCtrl(Node):
     def listener_callback(self, msg):
         # Descomposición para almacenamiento local en variables 
         new_point = np.array([msg.path.position.x, msg.path.position.y])
-        velocity = msg.velocity
-        duration = msg.time
+        self.max_lin_vel = msg.max_lin_vel
+        self.min_lin_vel = msg.min_lin_vel
+        self.max_ang_vel = msg.max_ang_vel
+        self.min_ang_vel = msg.min_ang_vel
 
         # Guardado en quque
         self.path_queue.append((new_point))
@@ -182,7 +189,7 @@ class OpenLoopCtrl(Node):
                 else:
                     
                     output = self.pid_controller_angular(error)
-                    self.twist.angular.z = self.saturate_with_deadband(output, 0.29, 3.0)
+                    self.twist.angular.z = self.saturate_with_deadband(output, self.min_ang_vel, self.max_ang_vel)
                     self.cmd_vel_pub.publish(self.twist)
                     return
 
@@ -210,7 +217,7 @@ class OpenLoopCtrl(Node):
                     
                 else:
                     output = self.pid_controller_lineal(error)
-                    self.twist.linear.x = self.saturate_with_deadband(output, 0.025, 0.38)
+                    self.twist.linear.x = self.saturate_with_deadband(output, self.min_lin_vel, self.max_lin_vel)
                     self.cmd_vel_pub.publish(self.twist)
                     return
 

@@ -18,9 +18,9 @@ class PathNode(Node):
         self.declare_parameter('coordenadas_y', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY) # self.declare_parameter('coordenadas_y', [])
         
 
-        self.declare_parameter('tiempo', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY) # self.declare_parameter('tiempo', [])
+        self.declare_parameter('lin_vel', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY) # self.declare_parameter('tiempo', [])
         
-        self.declare_parameter('velocidad', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY) #self.declare_parameter('velocidad', [])
+        self.declare_parameter('ang_vel', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY) #self.declare_parameter('velocidad', [])
        
         self.declare_parameter('area', 0.0)
 
@@ -28,8 +28,12 @@ class PathNode(Node):
 
         self.y = self.get_parameter('coordenadas_y').get_parameter_value().double_array_value # self.get_parameter('coordenadas_y').value
         
-        self.t = self.get_parameter('tiempo').get_parameter_value().double_array_value # self.get_parameter('tiempo').value
-        self.v = self.get_parameter('velocidad').get_parameter_value().double_array_value # self.get_parameter('velocidad').value
+        # Cabiar estos parametros
+
+        self.lin_vel = self.get_parameter('lin_vel').get_parameter_value().double_array_value # self.get_parameter('tiempo').value
+        self.ang_vel = self.get_parameter('ang_vel').get_parameter_value().double_array_value # self.get_parameter('velocidad').value
+
+        # lee arriba 
 
         self.a = self.get_parameter('area').value
 
@@ -42,6 +46,8 @@ class PathNode(Node):
         self.index_publicacion = 0
         self.x_verified = []
         self.y_verified = []
+        self.lin_verified =[]
+        self.ang_verified = []
 
         self.calculate_path()
 
@@ -50,7 +56,7 @@ class PathNode(Node):
     def calculate_path(self):
         """
         Verifica que los puntos dados esten dentro del area de trabajo
-        Calcula PWM y tiempo basado en parámetros de velocidad y tiempo
+        Verifica que las velocidades sean correctas
         """
 
         self.get_logger().info(f" Iniciando Comprobacion")
@@ -64,6 +70,10 @@ class PathNode(Node):
         # Velocidad Lineal
         v_lin_min = 0.025
         v_lin_max = 0.38
+
+        # Velocidad Lineal
+        v_ang_min = 0.29
+        v_ang_max = 4.0
 
 
         # Temp variable para calculo de distancias
@@ -90,57 +100,30 @@ class PathNode(Node):
             self.get_logger().info(f" El tamaño de vector 'x' no es el mismo que el vector 'y'")
             return
         
-        # Se ve si el array velocidad no este vacio
-        if self.v[0] !=0:
-            # Se compara que exista una velocidad para cada coordenada
-            if len(self.x) == len(self.v):
-                for j in range (len(self.v)):
-                    # Revisa cada V para que este dentro del rango permitido
-                    if (self.v[j] >= v_lin_min and self.v[j] <= v_lin_max):
-                    #if v_lin_min <= self.v[j] <= v_lin_max: 
-                        # Calcular Tiempo con base en su velocidad
-                        p1 = coords[j]
-                        p2 = coords[j+1]
-
-                        distancia = np.linalg.norm(np.array(p2) - np.array(p1)) # distancia = np.linalg.norm(p2-p1)
-
-                        cal_t = distancia / self.v[j] 
-
-                        self.pwm.append(self.v[j])
-                        self.time_exe.append(cal_t)
-                        self.get_logger().info(f" Velocidad Verificada {j}")
-                        self.get_logger().info(f" Tiempo calculado de {cal_t}")
-                    else:
-                        self.get_logger().info(f" La velocidad {j} = {self.v} sobrepasa lo permitido")
-                        return
+        if len(self.lin_vel) == 2:
+            if (self.lin_vel[0] >= v_lin_min and self.lin_vel[0]<= v_lin_max):
+                self.lin_verified.append(self.lin_vel[0])
+                if (self.lin_vel[1] > self.lin_vel[0] and self.lin_vel[1] <= v_lin_max):
+                    self.lin_verified.append(self.lin_vel[1])
+                else:
+                    self.get_logger().info(f" El valor lineal maximo no esta en rango")  
             else:
-                self.get_logger().info(f" No se a dado un vector de velocidad del mismo tamaño que coordenadas")
-        # Se ve si el array tiempo no este vacio
-        elif self.t[0] != 0:
-            # Se compara que exista un tiempo para cada coordenada
-            if len(self.x) == len(self.t):
-                for j in range (len(self.t)):
-                    # Calcular Velocidad con base en Tiempo dado
-                    p1 = coords[j]
-                    p2 = coords[j+1]
-
-                    distancia = np.linalg.norm(np.array(p2) - np.array(p1))
-
-                    v_t = distancia / self.t[j]
-                    if v_lin_min <= v_t <= v_lin_max: 
-                        self.pwm.append(v_t)
-                        self.time_exe.append(self.t[j])
-                        self.get_logger().info(f" Tiempo Verificado {j}")
-                        self.get_logger().info(f" Velocidad calculada de {v_t}")
-                    else:
-                        self.get_logger().info(f" El tiempo {j} = {self.t} va a {v_t} sobrepasa lo permitido")
-                        return
-            else:
-                self.get_logger().info(f" No se a dado un vector de tiempo del mismo tamaño que coordenadas")
-                return
-        # Si ambos vectores Tiempo/Velocidad estan vacios 
+                self.get_logger().info(f" El valor lineal minimo no esta en rango")    
         else:
-            self.get_logger().info(f" No se a dado un vector de tiempo o de velocidad")
+            self.get_logger().info(f" No se han introducido correctanente los limites lineales")
+            return
+
+        if len(self.ang_vel) == 2:
+            if (self.ang_vel[0] >= v_ang_min and self.ang_vel[0]<= v_ang_max):
+                self.ang_verified.append(self.ang_vel[0])
+                if (self.ang_vel[1] > self.ang_vel[0] and self.ang_vel[1] <= v_ang_max):
+                    self.ang_verified.append(self.ang_vel[1])
+                else:
+                    self.get_logger().info(f" El valor angular maximo no esta en rango")  
+            else:
+                self.get_logger().info(f" El valor angular minimo no esta en rango")    
+        else:
+            self.get_logger().info(f" No se han introducido correctanente los limites angulares")
             return
 
     def publicar_mensaje(self):
@@ -158,8 +141,14 @@ class PathNode(Node):
         msg.path.position.x = self.x_verified[self.index_publicacion]
         msg.path.position.y = self.y_verified[self.index_publicacion]
 
-        msg.velocity = self.pwm[self.index_publicacion]
-        msg.time = self.time_exe[self.index_publicacion]
+        # Modificar esto
+
+        msg.max_lin_vel = self.lin_verified[1]
+        msg.min_lin_vel = self.lin_verified[0]
+        msg.max_ang_vel = self.ang_verified[1]
+        msg.min_ang_vel = self.ang_verified[0]
+
+        # Modificar arriba
 
         # Se publica
         self.publisher_.publish(msg)

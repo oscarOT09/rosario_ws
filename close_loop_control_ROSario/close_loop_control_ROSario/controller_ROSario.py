@@ -16,8 +16,12 @@ from rosario_path.msg import RosarioPath
 class OpenLoopCtrl(Node):
     def __init__(self):
         super().__init__('close_loop_ctrl')
+        
         self.factor = 1.05
-        self.factor_dist = 0.95
+
+        self.factor_dist = 1.09 # 0.95
+        self.factor_ang = 0.85#1.1 # 0.90
+        
         # Posiciones objetivo
         self.X_ref = 0.0
         self.Y_ref = 0.0
@@ -154,7 +158,7 @@ class OpenLoopCtrl(Node):
         q = msg.pose.pose.orientation
         quaternion = [q.w, q.x, q.y, q.z]
         _, _, yaw = transforms3d.euler.quat2euler(quaternion)
-        self.Th_robot = self.wrap_to_Pi(yaw * self.factor) 
+        self.Th_robot = self.wrap_to_Pi(yaw*self.factor) 
 
     def control_loop(self):
         # Si el robot no está en movimiento y hay elementos faltantes en la queue, se realizan los calculos necesarios para efectuar la siguiente trayectoria 
@@ -163,9 +167,9 @@ class OpenLoopCtrl(Node):
             
             dx = self.X_ref - self.X_robot
             dy = self.Y_ref - self.Y_robot
-            self.ang_ref = np.arctan2(dy, dx) * 0.85
+            self.ang_ref = np.arctan2(dy, dx) * self.factor_ang
 
-            self.dist_ref = np.hypot(dx, dy) * self.factor_dist
+            self.dist_ref = np.hypot(dx, dy) #* self.factor_dist
 
             self.robot_busy = True
             self.state = 0
@@ -190,7 +194,7 @@ class OpenLoopCtrl(Node):
                     
                     self.integral_ang = 0.0
                     self.prev_error_ang = 0.0
-                    self.factor += 0.125
+                    self.factor += 0.125 # 0.025 # 0.015
                     self.state = 1
                     #self.get_logger().info(f"Estado dese angular: {self.state}.")
                     
@@ -209,7 +213,7 @@ class OpenLoopCtrl(Node):
 
             elif self.state == 1:
                 # TRASLACIÓN
-                self.dist_robot += np.linalg.norm([self.X_robot - self.prev_X_robot, self.Y_robot - self.prev_Y_robot])
+                self.dist_robot += np.linalg.norm([self.X_robot - self.prev_X_robot, self.Y_robot - self.prev_Y_robot]) * self.factor_dist
                 #error = np.hypot(dx, dy) #error = np.linalg.norm(pow(dx, 2) + pow(dy, 2)) # error = np.sqrt(dx**2 + dy**2) # self.dist_ref - self.dist_robot
                 error = self.dist_ref - self.dist_robot
 
@@ -225,7 +229,7 @@ class OpenLoopCtrl(Node):
                     self.integral_lin = 0.0
                     self.prev_error_lin = 0.0
 
-                    self.factor_dist -= 0.025
+                    self.factor_dist += self.dist_robot*0.005 #0.025
 
                     self.cmd_vel_pub.publish(self.twist)
                     #self.get_logger().info(f"Estado desde lineal: {self.state}.")

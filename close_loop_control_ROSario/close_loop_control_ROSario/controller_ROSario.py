@@ -16,7 +16,8 @@ from rosario_path.msg import RosarioPath
 class OpenLoopCtrl(Node):
     def __init__(self):
         super().__init__('close_loop_ctrl')
-
+        self.factor = 1.05
+        self.factor_dist = 0.95
         # Posiciones objetivo
         self.X_ref = 0.0
         self.Y_ref = 0.0
@@ -27,7 +28,7 @@ class OpenLoopCtrl(Node):
         self.X_robot = 0.0
         self.Y_robot = 0.0
         self.Th_robot = 0.0
-
+        
         self.dist_robot = 0.0
 
         self.prev_X_robot = 0.0
@@ -38,15 +39,15 @@ class OpenLoopCtrl(Node):
 
         # PID angular
         self.kp_ang = 0.25
-        self.ki_ang = 0.005
-        self.kd_ang = 0.002
+        self.ki_ang = 0.0 #0.005
+        self.kd_ang = 0.0 #0.002
         self.integral_ang = 0.0
         self.prev_error_ang = 0.0
 
         # PID lineal
         self.kp_lin = 0.5
-        self.ki_lin = 0.01
-        self.kd_lin = 0.005
+        self.ki_lin = 0.0 #0.01
+        self.kd_lin = 0.0 #0.005
         self.integral_lin = 0.0
         self.prev_error_lin = 0.0
 
@@ -98,7 +99,7 @@ class OpenLoopCtrl(Node):
         if result < 0:
             result += 2 * np.pi
         return result - np.pi
-
+    '''
     def delta_angle(self, prev, current, next_):
         prev = np.array(prev)
         current = np.array(current)
@@ -113,7 +114,7 @@ class OpenLoopCtrl(Node):
         delta = angle2 - angle1
         delta = (delta + np.pi) % (2 * np.pi) - np.pi  # Normalización del ágnulo entre -pi y pi
         return delta  # en radianes
-
+    '''
     def pid_controller_angular(self, error):
         self.integral_ang += error * self.dt_pid
         derivative = (error - self.prev_error_ang) / self.dt_pid
@@ -153,38 +154,34 @@ class OpenLoopCtrl(Node):
         q = msg.pose.pose.orientation
         quaternion = [q.w, q.x, q.y, q.z]
         _, _, yaw = transforms3d.euler.quat2euler(quaternion)
-        self.Th_robot = self.wrap_to_Pi(yaw)
+        self.Th_robot = self.wrap_to_Pi(yaw * self.factor) 
 
     def control_loop(self):
         # Si el robot no está en movimiento y hay elementos faltantes en la queue, se realizan los calculos necesarios para efectuar la siguiente trayectoria 
         if not self.robot_busy and self.path_queue:
-        #    self.prev_pose = self.curr_pose
-        #    self.curr_pose = self.next_pose
-            self.X_ref, self.Y_ref = self.path_queue.pop(0) #    self.next_pose = self.path_queue.pop(0)
+            self.X_ref, self.Y_ref = self.path_queue.pop(0)
             
-            #self.X_ref, self.Y_ref = self.next_pose
-            self.dist_ref = np.linalg.norm([self.X_ref - self.prev_goal_X, self.Y_ref - self.prev_goal_Y])
-            #self.dist_ref = self.dist_ref * 0.9
+            dx = self.X_ref - self.X_robot
+            dy = self.Y_ref - self.Y_robot
+            self.ang_ref = np.arctan2(dy, dx) * 0.85
 
-            dx = self.X_ref - self.prev_goal_X
-            dy = self.Y_ref - self.prev_goal_Y
-            self.ang_ref = np.arctan2(dy, dx) #self.delta_angle(self.prev_pose, self.curr_pose, self.next_pose)
-            #self.ang_ref = self.ang_ref * 0.8
+            self.dist_ref = np.hypot(dx, dy) * self.factor_dist
 
-            self.prev_goal_X = self.X_ref
-            self.prev_goal_Y = self.Y_ref
-            
             self.robot_busy = True
             self.state = 0
-            self.get_logger().info(f'Nuevo objetivo: ({self.X_ref}, {self.Y_ref}) | {self.dist_ref} m | {np.rad2deg(self.ang_ref)}°')
+            self.get_logger().info(f'Nuevo objetivo: ({self.X_ref}, {self.Y_ref})')
 
         # Si el robot está en movimiento, se trabaja entre los estados
         if self.robot_busy:
+            dx = self.X_ref - self.X_robot
+            dy = self.Y_ref - self.Y_robot
+
             if self.state == 0:
                 
                 #self.get_logger().info(f"Ang_robot: {np.rad2deg(self.Th_robot)} | Ang obj: {np.rad2deg(self.ang_ref)}")
-
+                
                 error = self.wrap_to_Pi(self.ang_ref - self.Th_robot)
+                
                 self.get_logger().info(f"Error angular: {self.ang_ref}-{self.Th_robot}={np.rad2deg(error):.2f}°")
 
                 if abs(error) < np.deg2rad(10.0):
@@ -193,11 +190,13 @@ class OpenLoopCtrl(Node):
                     
                     self.integral_ang = 0.0
                     self.prev_error_ang = 0.0
-
+                    self.factor += 0.125
                     self.state = 1
                     #self.get_logger().info(f"Estado dese angular: {self.state}.")
-                    self.get_logger().info("Rotación completada.")
+                    
                     self.cmd_vel_pub.publish(self.twist)
+                    self.get_logger().info("Rotación completada.")
+                    return
                 else:
                     
                     output = self.pid_controller_angular(error)
@@ -206,12 +205,15 @@ class OpenLoopCtrl(Node):
                     #self.get_logger().info(f"V.ANG: {self.twist.angular.z}")
                     #self.twist.linear.x = 0.0
                     self.cmd_vel_pub.publish(self.twist)
+                    return
 
             elif self.state == 1:
                 # TRASLACIÓN
                 self.dist_robot += np.linalg.norm([self.X_robot - self.prev_X_robot, self.Y_robot - self.prev_Y_robot])
+                #error = np.hypot(dx, dy) #error = np.linalg.norm(pow(dx, 2) + pow(dy, 2)) # error = np.sqrt(dx**2 + dy**2) # self.dist_ref - self.dist_robot
                 error = self.dist_ref - self.dist_robot
-                self.get_logger().info(f"Error lineal: {self.dist_ref}-{self.dist_robot}={error:.3f} m")
+
+                self.get_logger().info(f"Error lineal: {error:.3f} m")
                 self.prev_X_robot = self.X_robot
                 self.prev_Y_robot = self.Y_robot
 
@@ -223,9 +225,13 @@ class OpenLoopCtrl(Node):
                     self.integral_lin = 0.0
                     self.prev_error_lin = 0.0
 
+                    self.factor_dist -= 0.025
+
+                    self.cmd_vel_pub.publish(self.twist)
                     #self.get_logger().info(f"Estado desde lineal: {self.state}.")
                     self.get_logger().info("Traslación completada.")
-                    self.cmd_vel_pub.publish(self.twist)
+                    return
+                    
                 else:
                     output = self.pid_controller_lineal(error)
                     #self.get_logger().info(f"Salida PID LINEAL: {output}")
@@ -233,6 +239,7 @@ class OpenLoopCtrl(Node):
                     #self.get_logger().info(f"V.LIN: {self.twist.linear.x}")
                     #self.twist.angular.z = 0.0
                     self.cmd_vel_pub.publish(self.twist)
+                    return
 
             elif self.state == 2:
                 #self.twist = Twist()
@@ -240,8 +247,9 @@ class OpenLoopCtrl(Node):
                 self.twist.angular.z = 0.0
 
                 self.robot_busy = False
-                self.get_logger().info("Objetivo alcanzado. Esperando siguiente...")
                 self.cmd_vel_pub.publish(self.twist)
+                self.get_logger().info("Objetivo alcanzado. Esperando siguiente...")
+                
 
 # Main
 def main(args=None):

@@ -15,8 +15,17 @@ class ColorDetectionNode(Node):
         self.bridge = CvBridge()
 
         # Define HSV range for blue color detection
-        self.blue_lower = np.array([110, 60, 60], np.uint8)
-        self.blue_upper = np.array([160, 255, 255], np.uint8)
+        self.blue_lower = np.array([100, 150, 50], np.uint8)
+        self.blue_upper = np.array([130, 255, 255], np.uint8)
+
+        self.green_lower = np.array([60, 100, 100], np.uint8)
+        self.green_upper = np.array([90, 255, 255], np.uint8)
+
+        self.red1_lower = np.array([0, 60, 50], np.uint8)
+        self.red1_upper = np.array([10, 255, 255], np.uint8)
+
+        self.red2_lower = np.array([130, 50, 50], np.uint8)
+        self.red2_upper = np.array([178, 255, 255], np.uint8)
 
         # ROS2 Subscriber for raw camera images
         self.subscription = self.create_subscription(
@@ -60,19 +69,26 @@ class ColorDetectionNode(Node):
         # Step 2: Convert from BGR to HSV color space
         hsv_img = cv.cvtColor(blurred_img, cv.COLOR_BGR2HSV)
 
-        # Step 3: Create binary mask for blue color
-        blue_mask = cv.inRange(hsv_img, self.blue_lower, self.blue_upper)
+        # Step 3: Create binary masks for colors
+        red_mask1  = cv.inRange(hsv_img, self.red1_lower, self.red1_upper)
+        red_mask2  = cv.inRange(hsv_img, self.red2_lower, self.red2_upper)
+        red_mask   = cv.bitwise_or(red_mask1,red_mask2)
+        green_mask = cv.inRange(hsv_img, self.blue_lower, self.blue_upper)
+        blue_mask  = cv.inRange(hsv_img, self.blue_lower, self.blue_upper)
+
+        temp_mask = cv.bitwise_or(hsv_img,red_mask,green_mask)
+        color_mask = cv.bitwise_or(hsv_img,temp_mask,blue_mask)
 
         # Step 4: Apply mask to extract blue regions from original image
-        blue_extracted_img = cv.bitwise_and(flip_img, flip_img, mask=blue_mask)
+        extracted_img = cv.bitwise_and(flip_img, flip_img, mask=color_mask)
 
         # Step 5: Convert extracted blue regions to grayscale
-        gray_blue_img = cv.cvtColor(blue_extracted_img, cv.COLOR_BGR2GRAY)
+        gray_color_img = cv.cvtColor(extracted_img, cv.COLOR_BGR2GRAY)
 
         # Step 6: Threshold grayscale image to binary image
-        _, binary_blue_img = cv.threshold(gray_blue_img, 5, 255, cv.THRESH_BINARY)
+        _, binary_blue_img = cv.threshold(gray_color_img, 5, 255, cv.THRESH_BINARY)
 
-        # Step 7: Apply morphological operations to clean noise
+        # Step 7: Apply morphological operations to clean noise     (Apertura)
         kernel = np.ones((3, 3), np.uint8)
         cleaned_img = cv.erode(binary_blue_img, kernel, iterations=8)
         cleaned_img = cv.dilate(cleaned_img, kernel, iterations=8)

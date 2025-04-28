@@ -76,12 +76,12 @@ class ColorDetectionNode(Node):
         red_mask1   = cv.inRange(hsv_img, self.red1_lower, self.red1_upper)
         red_mask2   = cv.inRange(hsv_img, self.red2_lower, self.red2_upper)
         red_mask    = cv.bitwise_or(red_mask1,red_mask2)
-        green_mask  = cv.inRange(hsv_img, self.blue_lower, self.blue_upper)
+        green_mask  = cv.inRange(hsv_img, self.green_lower, self.green_upper)
         yellow_mask = cv.inRange(hsv_img,self.yellow_lower, self.yellow_upper)
         #blue_mask  = cv.inRange(hsv_img, self.blue_lower, self.blue_upper)
 
-        temp_mask = cv.bitwise_or(hsv_img,red_mask,green_mask)
-        color_mask = cv.bitwise_or(hsv_img,temp_mask,yellow_mask)
+        temp_mask = cv.bitwise_or(red_mask, green_mask)
+        color_mask = cv.bitwise_or(temp_mask,yellow_mask)
 
         # Step 4: Apply mask to extract blue regions from original image
         extracted_img = cv.bitwise_and(flip_img, flip_img, mask=color_mask)
@@ -90,19 +90,20 @@ class ColorDetectionNode(Node):
         gray_color_img = cv.cvtColor(extracted_img, cv.COLOR_BGR2GRAY)
 
         # Step 6: Threshold grayscale image to binary image
-        _, binary_blue_img = cv.threshold(gray_color_img, 5, 255, cv.THRESH_BINARY)
+        _, binary_img = cv.threshold(gray_color_img, 5, 255, cv.THRESH_BINARY)
 
         # Step 7: Apply morphological operations to clean noise     (Cerrar)
         kernel = np.ones((3, 3), np.uint8)
-        cleaned_img = cv.dilate(cleaned_img, kernel, iterations=8)
-        cleaned_img = cv.erode(binary_blue_img, kernel, iterations=8)
+        cleaned_img = cv.dilate(binary_img, kernel, iterations=8)
+        cleaned_img = cv.erode(cleaned_img , kernel, iterations=8)
 
 
         # Paso 8 : Aplicar la mascara a la imagen original para ver los colores
         resultado = cv.bitwise_and(flip_img, flip_img, mask=color_mask)
+        resultado_rgb = cv.cvtColor(resultado, cv.COLOR_BGR2RGB)
 
         # Publish the cleaned binary image
-        processed_img_msg = self.bridge.cv2_to_imgmsg(resultado, encoding='mono8')
+        processed_img_msg = self.bridge.cv2_to_imgmsg(resultado_rgb, encoding='rgb8')
         self.image_pub.publish(processed_img_msg)
 
 

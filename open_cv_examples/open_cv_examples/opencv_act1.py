@@ -15,8 +15,11 @@ class ColorDetectionNode(Node):
         self.bridge = CvBridge()
 
         # Define HSV range for blue color detection
-        self.blue_lower = np.array([100, 150, 50], np.uint8)
-        self.blue_upper = np.array([130, 255, 255], np.uint8)
+        #self.blue_lower = np.array([100, 150, 50], np.uint8)
+        #self.blue_upper = np.array([130, 255, 255], np.uint8)
+
+        self.yellow_lower = np.array([30, 140, 100], np.uint8)
+        self.yellow_upper = np.array([35, 255, 255], np.uint8)
 
         self.green_lower = np.array([60, 100, 100], np.uint8)
         self.green_upper = np.array([90, 255, 255], np.uint8)
@@ -25,7 +28,7 @@ class ColorDetectionNode(Node):
         self.red1_upper = np.array([10, 255, 255], np.uint8)
 
         self.red2_lower = np.array([130, 50, 50], np.uint8)
-        self.red2_upper = np.array([178, 255, 255], np.uint8)
+        self.red2_upper = np.array([179, 255, 255], np.uint8)
 
         # ROS2 Subscriber for raw camera images
         self.subscription = self.create_subscription(
@@ -70,14 +73,15 @@ class ColorDetectionNode(Node):
         hsv_img = cv.cvtColor(blurred_img, cv.COLOR_BGR2HSV)
 
         # Step 3: Create binary masks for colors
-        red_mask1  = cv.inRange(hsv_img, self.red1_lower, self.red1_upper)
-        red_mask2  = cv.inRange(hsv_img, self.red2_lower, self.red2_upper)
-        red_mask   = cv.bitwise_or(red_mask1,red_mask2)
-        green_mask = cv.inRange(hsv_img, self.blue_lower, self.blue_upper)
-        blue_mask  = cv.inRange(hsv_img, self.blue_lower, self.blue_upper)
+        red_mask1   = cv.inRange(hsv_img, self.red1_lower, self.red1_upper)
+        red_mask2   = cv.inRange(hsv_img, self.red2_lower, self.red2_upper)
+        red_mask    = cv.bitwise_or(red_mask1,red_mask2)
+        green_mask  = cv.inRange(hsv_img, self.blue_lower, self.blue_upper)
+        yellow_mask = cv.inRange(hsv_img,self.yellow_lower, self.yellow_upper)
+        #blue_mask  = cv.inRange(hsv_img, self.blue_lower, self.blue_upper)
 
         temp_mask = cv.bitwise_or(hsv_img,red_mask,green_mask)
-        color_mask = cv.bitwise_or(hsv_img,temp_mask,blue_mask)
+        color_mask = cv.bitwise_or(hsv_img,temp_mask,yellow_mask)
 
         # Step 4: Apply mask to extract blue regions from original image
         extracted_img = cv.bitwise_and(flip_img, flip_img, mask=color_mask)
@@ -88,13 +92,17 @@ class ColorDetectionNode(Node):
         # Step 6: Threshold grayscale image to binary image
         _, binary_blue_img = cv.threshold(gray_color_img, 5, 255, cv.THRESH_BINARY)
 
-        # Step 7: Apply morphological operations to clean noise     (Apertura)
+        # Step 7: Apply morphological operations to clean noise     (Cerrar)
         kernel = np.ones((3, 3), np.uint8)
-        cleaned_img = cv.erode(binary_blue_img, kernel, iterations=8)
         cleaned_img = cv.dilate(cleaned_img, kernel, iterations=8)
+        cleaned_img = cv.erode(binary_blue_img, kernel, iterations=8)
+
+
+        # Paso 8 : Aplicar la mascara a la imagen original para ver los colores
+        resultado = cv.bitwise_and(flip_img, flip_img, mask=color_mask)
 
         # Publish the cleaned binary image
-        processed_img_msg = self.bridge.cv2_to_imgmsg(cleaned_img, encoding='mono8')
+        processed_img_msg = self.bridge.cv2_to_imgmsg(resultado, encoding='mono8')
         self.image_pub.publish(processed_img_msg)
 
 

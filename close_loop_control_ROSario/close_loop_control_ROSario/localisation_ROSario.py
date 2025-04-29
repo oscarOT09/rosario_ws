@@ -20,8 +20,13 @@ class DeadReckoning(Node):
         self.Y = 0.0
         self.Th = 0.0
 
+        # Factores de conversión
+        self.factor_x = 1.09740
+        self.factor_y = 1.10335
+        self.factor_th = 1.08182
+
         self._l = 0.18
-        self._r = 0.05
+        self._r = 0.05012
         
         self.rate = 200.0
         self._sample_time = 1.0/self.rate
@@ -49,8 +54,8 @@ class DeadReckoning(Node):
         # Publishers
         self.odom_pub = self.create_publisher(Odometry, 'odom', qos.qos_profile_sensor_data)
 
-        # Timer to update kinematics at ~100Hz
-        self.timer = self.create_timer(1.0 / self.rate, self.run)  # 100 Hz
+        # Timer to update kinematics at ~200Hz
+        self.timer = self.create_timer(1.0 / self.rate, self.run)
 
 
         self.get_logger().info("Odometry Node Started.")
@@ -89,12 +94,12 @@ class DeadReckoning(Node):
             self.Omega = (1.0/self._l) * (self.v_r - self.v_l)
 
             # Robot theta
-            self.Th += self.Omega * dt
+            self.Th += (self.Omega * dt) * self.factor_th
             
             # Robot position in x
-            self.X += self.V * np.cos(self.Th) * dt
+            self.X += (self.V * np.cos(self.Th) * dt) * self.factor_x
             # Robot position in y
-            self.Y += self.V * np.sin(self.Th) * dt
+            self.Y += (self.V * np.sin(self.Th) * dt) * self.factor_y
             
 
             self.last_time = current_time

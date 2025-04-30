@@ -203,18 +203,19 @@ class OpenLoopCtrl(Node):
             elif self.state == 1:
                 # TRASLACIÓN
                 
-                #dx = self.next_pose[0] - self.X_robot
-                #dy = self.next_pose[1] - self.Y_robot
-                dx = self.X_robot - self.prev_X_robot
-                dy = self.Y_robot - self.prev_Y_robot
+                dx = self.next_pose[0] - self.X_robot
+                dy = self.next_pose[1] - self.Y_robot
+                #dx = self.X_robot - self.prev_X_robot
+                #dy = self.Y_robot - self.prev_Y_robot
                 self.dist_robot += np.hypot(dx, dy)
-                self.prev_X_robot = self.X_robot
-                self.prev_Y_robot = self.Y_robot
+                #self.prev_X_robot = self.X_robot
+                #self.prev_Y_robot = self.Y_robot
                 
-                error_lin = self.dist_ref - self.dist_robot
-                #error_lin = np.hypot(dx, dy) 
+                #error_lin = self.dist_ref - self.dist_robot
+                error_lin = np.hypot(dx, dy) 
 
-                self.get_logger().info(f"Error lineal: {self.dist_ref}-{self.dist_robot}={error_lin:.3f} m")
+                #self.get_logger().info(f"Error lineal: {self.dist_ref}-{self.dist_robot}={error_lin:.3f} m")
+                self.get_logger().info(f"Error lineal: {error_lin:.3f} m")
 
                 if error_lin < (self.dist_ref * 0.12): #0.10:
                     self.twist.linear.x = 0.0

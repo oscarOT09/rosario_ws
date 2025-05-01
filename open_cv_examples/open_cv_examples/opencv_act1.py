@@ -18,17 +18,17 @@ class ColorDetectionNode(Node):
         #self.blue_lower = np.array([100, 150, 50], np.uint8)
         #self.blue_upper = np.array([130, 255, 255], np.uint8)
 
-        self.yellow_lower = np.array([30, 140, 100], np.uint8)
+        self.yellow_lower = np.array([20, 20, 150], np.uint8)
         self.yellow_upper = np.array([35, 255, 255], np.uint8)
 
         self.green_lower = np.array([60, 100, 100], np.uint8)
         self.green_upper = np.array([90, 255, 255], np.uint8)
 
-        self.red1_lower = np.array([0, 60, 50], np.uint8)
-        self.red1_upper = np.array([10, 255, 255], np.uint8)
+        self.red1_lower = np.array([0, 100, 0], np.uint8)
+        self.red1_upper = np.array([15, 255, 255], np.uint8)
 
-        self.red2_lower = np.array([130, 50, 50], np.uint8)
-        self.red2_upper = np.array([179, 255, 255], np.uint8)
+        self.red2_lower = np.array([145, 100, 0], np.uint8)
+        self.red2_upper = np.array([180, 255, 255], np.uint8)
 
         # ROS2 Subscriber for raw camera images
         self.subscription = self.create_subscription(

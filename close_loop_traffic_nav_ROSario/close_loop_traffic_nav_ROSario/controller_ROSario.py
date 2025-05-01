@@ -17,7 +17,7 @@ class OpenLoopCtrl(Node):
         super().__init__('close_loop_ctrl')
         
         # Muestreo
-        frecuencia_controlador = 200.0 #200.0
+        frecuencia_controlador = 250.0 #200.0
 
         # Mensaje personalizado
         self.max_lin_vel = 0.0
@@ -61,7 +61,7 @@ class OpenLoopCtrl(Node):
         self.prev_error_ang = 0.0
 
         # PID lineal
-        self.kp_lin = 0.45 #0.5
+        self.kp_lin = 0.4 #0.5
         self.ki_lin = 0.0 #0.01
         self.kd_lin = 0.0 #0.005
         self.integral_lin = 0.0
@@ -164,9 +164,9 @@ class OpenLoopCtrl(Node):
             #self.ang_ref = self.wrap_to_Pi(self.ang_ref)
 
             # Distancia
-            dx = self.next_pose[0] - self.curr_pose[0]
-            dy = self.next_pose[1] - self.curr_pose[1]
-            self.dist_ref = np.hypot(dx, dy)
+            dx_ref = self.next_pose[0] - self.curr_pose[0]
+            dy_ref = self.next_pose[1] - self.curr_pose[1]
+            self.dist_ref = np.hypot(dx_ref, dy_ref)
             self.prev_pose = self.curr_pose.copy()
             self.curr_pose = self.next_pose.copy()
 
@@ -176,14 +176,20 @@ class OpenLoopCtrl(Node):
 
         # Si el robot está en movimiento, se trabaja entre los estados
         if self.robot_busy:
+            self.get_logger().info(f"Pose: ({self.X_robot}, {self.Y_robot}, {np.rad2deg(self.Th_robot)}°) ctrl_final")
+
+            dx = self.next_pose[0] - self.X_robot
+            dy = self.next_pose[1] - self.Y_robot
 
             if self.state == 0:
                 
-                error_ang = self.wrap_to_Pi(self.ang_ref - self.Th_robot)
-                
-                self.get_logger().info(f"Error angular: {self.ang_ref}-{self.Th_robot}={np.rad2deg(error_ang):.2f}°")
+                #error_ang = self.wrap_to_Pi(self.ang_ref - self.Th_robot)
+                error_ang = self.wrap_to_Pi(np.arctan2(dy,dx) - self.Th_robot)
 
-                if error_ang < (self.ang_ref * 0.27): # np.deg2rad(15.0):
+                #self.get_logger().info(f"Error angular: {self.ang_ref}-{self.Th_robot}={np.rad2deg(error_ang):.2f}°")  
+                self.get_logger().info(f"Error angular: {np.rad2deg(error_ang):.2f}°")
+
+                if (error_ang <= np.deg2rad(0.5)) or (error_ang == 0.0): #(self.ang_ref*0.01)):
                     self.twist.angular.z = 0.0
                     
                     self.integral_ang = 0.0
@@ -203,11 +209,10 @@ class OpenLoopCtrl(Node):
             elif self.state == 1:
                 # TRASLACIÓN
                 
-                dx = self.next_pose[0] - self.X_robot
-                dy = self.next_pose[1] - self.Y_robot
+                
                 #dx = self.X_robot - self.prev_X_robot
                 #dy = self.Y_robot - self.prev_Y_robot
-                self.dist_robot += np.hypot(dx, dy)
+                #self.dist_robot += np.hypot(dx, dy)
                 #self.prev_X_robot = self.X_robot
                 #self.prev_Y_robot = self.Y_robot
                 
@@ -217,7 +222,7 @@ class OpenLoopCtrl(Node):
                 #self.get_logger().info(f"Error lineal: {self.dist_ref}-{self.dist_robot}={error_lin:.3f} m")
                 self.get_logger().info(f"Error lineal: {error_lin:.3f} m")
 
-                if error_lin < (self.dist_ref * 0.12): #0.10:
+                if error_lin <= 0.048: #error_lin < 0.10:
                     self.twist.linear.x = 0.0
                     self.state = 2
                     self.dist_robot = 0.0

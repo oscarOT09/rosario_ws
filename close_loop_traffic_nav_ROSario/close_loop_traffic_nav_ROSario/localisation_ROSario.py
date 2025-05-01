@@ -21,9 +21,9 @@ class DeadReckoning(Node):
         self.Th = 0.0
 
         # Factores de conversión
-        self.factor_x = 1.09740
-        self.factor_y = 1.10335
-        self.factor_th = 1.08182
+        self.factor_x = 1.10087
+        self.factor_y = 1.10806
+        self.factor_th = 1.10088
 
         self._l = 0.18
         self._r = 0.05012
@@ -95,12 +95,12 @@ class DeadReckoning(Node):
 
             # Robot theta
             self.Th += (self.Omega * dt) * self.factor_th
-            
+            #self.get_logger().info(f"Angulo: {np.rad2deg(self.Th)}°")
             # Robot position in x
             self.X += (self.V * np.cos(self.Th) * dt) * self.factor_x
             # Robot position in y
             self.Y += (self.V * np.sin(self.Th) * dt) * self.factor_y
-            
+            #self.get_logger().info(f"Pose: ({self.X}, {self.Y}, {np.rad2deg(self.Th)}° no)")
 
             self.last_time = current_time
 

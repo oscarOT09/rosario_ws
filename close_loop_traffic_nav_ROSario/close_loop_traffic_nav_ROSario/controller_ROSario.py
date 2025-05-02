@@ -222,7 +222,7 @@ class OpenLoopCtrl(Node):
                 #self.get_logger().info(f"Error lineal: {self.dist_ref}-{self.dist_robot}={error_lin:.3f} m")
                 self.get_logger().info(f"Error lineal: {error_lin:.3f} m")
 
-                if error_lin <= 0.048: #error_lin < 0.10:
+                if abs(error_lin) <= 0.048: #error_lin < 0.10:
                     self.twist.linear.x = 0.0
                     self.state = 2
                     self.dist_robot = 0.0

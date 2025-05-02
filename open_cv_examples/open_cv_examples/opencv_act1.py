@@ -15,20 +15,20 @@ class ColorDetectionNode(Node):
         self.bridge = CvBridge()
 
         # Define HSV range for blue color detection
-        #self.blue_lower = np.array([100, 150, 50], np.uint8)
-        #self.blue_upper = np.array([130, 255, 255], np.uint8)
-
-        self.yellow_lower = np.array([20, 20, 150], np.uint8)
+        self.yellow_lower = np.array([25, 15, 165], np.uint8)
         self.yellow_upper = np.array([35, 255, 255], np.uint8)
 
         self.green_lower = np.array([60, 100, 100], np.uint8)
-        self.green_upper = np.array([90, 255, 255], np.uint8)
+        self.green_upper = np.array([80, 255, 255], np.uint8)
 
         self.red1_lower = np.array([0, 100, 0], np.uint8)
-        self.red1_upper = np.array([15, 255, 255], np.uint8)
+        self.red1_upper = np.array([10, 255, 255], np.uint8)
 
-        self.red2_lower = np.array([145, 100, 0], np.uint8)
+        self.red2_lower = np.array([175, 100, 0], np.uint8)
         self.red2_upper = np.array([180, 255, 255], np.uint8)
+
+        self.color_id = 0
+
 
         # ROS2 Subscriber for raw camera images
         self.subscription = self.create_subscription(
@@ -46,7 +46,7 @@ class ColorDetectionNode(Node):
         )
 
         # Timer setup for regular processing
-        self.timer = self.create_timer(0.1, self.timer_callback)
+        self.timer = self.create_timer(1.0/16.0, self.timer_callback)
 
         self.get_logger().info('Color Detection Node has started!')
 
@@ -64,8 +64,10 @@ class ColorDetectionNode(Node):
         if self.img is None:
             self.get_logger().info('Waiting for image data...')
             return
+        
         flip_img = cv.flip(self.img, 0)
         flip_img = cv.flip(flip_img, 1)
+
         # Step 1: Reduce noise with Gaussian blur
         blurred_img = cv.GaussianBlur(flip_img, (9, 9), 2)
 
@@ -75,27 +77,42 @@ class ColorDetectionNode(Node):
         # Step 3: Create binary masks for colors
         red_mask1   = cv.inRange(hsv_img, self.red1_lower, self.red1_upper)
         red_mask2   = cv.inRange(hsv_img, self.red2_lower, self.red2_upper)
-        red_mask    = cv.bitwise_or(red_mask1,red_mask2)
-        green_mask  = cv.inRange(hsv_img, self.green_lower, self.green_upper)
-        yellow_mask = cv.inRange(hsv_img,self.yellow_lower, self.yellow_upper)
-        #blue_mask  = cv.inRange(hsv_img, self.blue_lower, self.blue_upper)
+        mask_red    = cv.bitwise_or(red_mask1,red_mask2)
+        mask_green  = cv.inRange(hsv_img, self.green_lower, self.green_upper)
+        mask_yellow = cv.inRange(hsv_img,self.yellow_lower, self.yellow_upper)
 
-        temp_mask = cv.bitwise_or(red_mask, green_mask)
-        color_mask = cv.bitwise_or(temp_mask,yellow_mask)
+        kernel =  cv.getStructuringElement(cv.MORPH_ELLIPSE,(3,3))
 
-        # Step 4: Apply mask to extract blue regions from original image
-        extracted_img = cv.bitwise_and(flip_img, flip_img, mask=color_mask)
+        mask_green = cv.morphologyEx(mask_green, cv.MORPH_DILATE, kernel)
+        mask_green = cv.morphologyEx(mask_green, cv.MORPH_OPEN, kernel, iterations=2)
+        mask_green = cv.morphologyEx(mask_green, cv.MORPH_CLOSE, kernel, iterations= 5)
 
-        # Step 5: Convert extracted blue regions to grayscale
-        gray_color_img = cv.cvtColor(extracted_img, cv.COLOR_BGR2GRAY)
+        mask_yellow = cv.morphologyEx(mask_yellow, cv.MORPH_DILATE, kernel)
+        mask_yellow = cv.morphologyEx(mask_yellow, cv.MORPH_OPEN, kernel, iterations=2)
+        mask_yellow = cv.morphologyEx(mask_yellow, cv.MORPH_CLOSE, kernel, iterations= 5)
 
-        # Step 6: Threshold grayscale image to binary image
-        _, binary_img = cv.threshold(gray_color_img, 5, 255, cv.THRESH_BINARY)
+        mask_red = cv.morphologyEx(mask_red, cv.MORPH_DILATE, kernel)
+        mask_red = cv.morphologyEx(mask_red, cv.MORPH_OPEN, kernel, iterations=2)
+        mask_red = cv.morphologyEx(mask_red, cv.MORPH_CLOSE, kernel, iterations= 5)
 
-        # Step 7: Apply morphological operations to clean noise     (Cerrar)
-        kernel = np.ones((3, 3), np.uint8)
-        cleaned_img = cv.dilate(binary_img, kernel, iterations=8)
-        cleaned_img = cv.erode(cleaned_img , kernel, iterations=8)
+        # Conteo de píxeles
+        red_count = cv.countNonZero(mask_red)
+        yellow_count = cv.countNonZero(mask_yellow)
+        green_count = cv.countNonZero(mask_green)
+        
+        # Determinar el color encendido
+        if max(red_count, yellow_count, green_count) > 100:  # Umbral mínimo
+            if red_count == max(red_count, yellow_count, green_count):
+                self.color_id = 1
+            elif yellow_count == max(red_count, yellow_count, green_count):
+                self.color_id = 2
+            elif green_count == max(red_count, yellow_count, green_count):
+                self.color_id = 3
+        else:
+            self.color_id = 0
+                
+        color_mask = cv.bitwise_or(mask_red, mask_green)
+        color_mask = cv.bitwise_or(color_mask,mask_yellow)
 
 
         # Paso 8 : Aplicar la mascara a la imagen original para ver los colores
@@ -104,6 +121,7 @@ class ColorDetectionNode(Node):
 
         # Publish the cleaned binary image
         processed_img_msg = self.bridge.cv2_to_imgmsg(resultado_rgb, encoding='rgb8')
+        self.get_logger().info(f"Color detectado: {self.color_id}")
         self.image_pub.publish(processed_img_msg)
 
 

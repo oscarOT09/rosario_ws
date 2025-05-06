@@ -51,7 +51,7 @@ class ColorDetectionNode(Node):
         )
 
         # Timer setup for regular processing
-        self.timer = self.create_timer(1.0/16.0, self.timer_callback)
+        self.timer = self.create_timer(1.0/5.0, self.timer_callback)
 
         self.get_logger().info('Color Detection Node has started!')
 

@@ -30,6 +30,7 @@ setup(
             'localisation_ROSario = close_loop_traffic_nav_ROSario.localisation_ROSario:main',
             'path_generator_ROSario = close_loop_traffic_nav_ROSario.path_generator_ROSario:main',
             'pose_plotter = close_loop_traffic_nav_ROSario.pose_plotter:main',
+            'colorIdentificator = close_loop_traffic_nav_ROSario.colorIdentificator:main'
         ],
     },
 )

@@ -56,7 +56,7 @@ class PosePlotter(Node):
         )
         self.subscription_colorsID = self.create_subscription(
             Int32,
-            '/color_ID',
+            '/color_id',
             self.colors_callback,
             10
         )
@@ -92,7 +92,7 @@ class PosePlotter(Node):
             self.ax.plot(point[0], point[1], marker='o', color='black')
 
         for x, y, c in zip(self.x_data, self.y_data, self.colors):
-            self.ax.plot(x, y, marker='o', color=c)
+            self.ax.plot(x, y, marker='*', color=c)
 
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()

@@ -79,7 +79,7 @@ class OpenLoopCtrl(Node):
         self.robot_busy = False
 
         # Estado de identificación de color
-        self.curr_color = 0
+        self.color_state = 0
 
         # Publicador para el tópico /cmd_vel (comunicación con el Puzzlebot)
         self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
@@ -92,11 +92,134 @@ class OpenLoopCtrl(Node):
         self.colorID_sub = self.create_subscription(Int32, 'color_id', self.colors_callback, 10)
 
         # Estado
-        self.state = 0  # 0: rotación, 1: movimiento lineal, 2: Reposo
+        self.mov_state = 0  # 0: rotación, 1: movimiento lineal, 2: Reposo
 
         self.controller_timer = self.create_timer(1.0 / frecuencia_controlador, self.control_loop)
 
         self.get_logger().info('Close Loop Traffic Navigation Controller initialized!')
+        
+    def goals_callback(self, msg):
+        # Descomposición para almacenamiento local en variables 
+        new_point = np.array([msg.path.position.x, msg.path.position.y])
+        self.max_lin_vel = msg.max_lin_vel
+        self.min_lin_vel = msg.min_lin_vel
+        self.max_ang_vel = msg.max_ang_vel
+        self.min_ang_vel = msg.min_ang_vel
+
+        # Guardado en queue
+        self.path_queue.append((new_point))
+        self.get_logger().info(f'New trayectory: ({msg.path.position.x}, {msg.path.position.y})')
+    
+    def odometriaPuzzlebot_callback(self, msg):
+        self.X_robot = msg.pose.pose.position.x
+        self.Y_robot = msg.pose.pose.position.y
+
+        q = msg.pose.pose.orientation
+        quaternion = [q.w, q.x, q.y, q.z]
+        _, _, yaw = transforms3d.euler.quat2euler(quaternion)
+        self.Th_robot = self.wrap_to_Pi(yaw)
+    
+    def colors_callback(self, msg):
+        self.color_state = msg.data
+    
+    def control_loop(self):
+        # Si el robot no está en movimiento y hay elementos faltantes en la queue, se realizan los calculos necesarios para efectuar la siguiente trayectoria 
+        if not self.robot_busy and self.path_queue:
+            # Siguiente objetivo
+            self.next_pose = np.array(self.path_queue.pop(0))
+            
+            # Cálculo de referencias
+            # Ángulo
+            self.ang_ref += self.delta_angle(self.prev_pose, self.curr_pose, self.next_pose)
+
+            # Distancia
+            dx_ref = self.next_pose[0] - self.curr_pose[0]
+            dy_ref = self.next_pose[1] - self.curr_pose[1]
+            self.dist_ref = np.hypot(dx_ref, dy_ref)
+            
+            self.prev_pose = self.curr_pose.copy()
+            self.curr_pose = self.next_pose.copy()
+
+            self.robot_busy = True
+            self.mov_state = 0
+            self.get_logger().info(f'Objetivo: ({self.next_pose[0]}, {self.next_pose[1]}) | {np.rad2deg(self.ang_ref)} | {self.dist_ref} m')
+
+        # Si el robot está en movimiento, se trabaja entre los estados
+        if self.robot_busy:
+            self.get_logger().info(f"Pose: ({self.X_robot}, {self.Y_robot}, {np.rad2deg(self.Th_robot)}°) | Color ID: {self.color_state}")
+            
+            if self.color_state == 0 or self.color_state == 3:
+                dx = self.next_pose[0] - self.X_robot
+                dy = self.next_pose[1] - self.Y_robot
+                
+                if self.mov_state == 0:
+                    # ROTACIÓN
+                    error_ang = self.wrap_to_Pi(np.arctan2(dy,dx) - self.Th_robot)
+                    self.get_logger().info(f"Error angular: {np.rad2deg(error_ang):.2f}°")
+
+                    if (abs(error_ang) <= np.deg2rad(2.8)) or (error_ang == 0.0):
+                        self.angular_speed = 0.0
+                        self.twist.angular.z = self.angular_speed
+                                            
+                        self.integral_ang = 0.0
+                        self.prev_error_ang = 0.0
+                        self.mov_state = 1
+                        
+                        self.cmd_vel_pub.publish(self.twist)
+                        self.get_logger().info("Rotación completada.")
+                        return
+                    else:
+                        
+                        self.angular_speed = self.saturate_with_deadband(self.pid_controller_angular(error_ang), self.min_ang_vel, self.max_ang_vel)
+                        self.twist.angular.z = self.angular_speed
+                        self.cmd_vel_pub.publish(self.twist)
+                        return
+
+                elif self.mov_state == 1:
+                    # TRASLACIÓN
+                    error_lin = np.hypot(dx, dy) #+ 0.05
+                    self.get_logger().info(f"Error lineal: {error_lin} m")
+
+                    if abs(error_lin) <= 0.05:
+                        self.linear_speed = 0.0
+                        self.twist.linear.x = self.linear_speed
+                        self.mov_state = 2
+                        self.dist_robot = 0.0
+                        self.integral_lin = 0.0
+                        self.prev_error_lin = 0.0
+
+                        self.cmd_vel_pub.publish(self.twist)
+                        self.get_logger().info("Traslación completada.")
+                        return
+                        
+                    else:
+                        self.linear_speed = self.saturate_with_deadband(self.pid_controller_lineal(error_lin), self.min_lin_vel, self.max_lin_vel)
+                        self.twist.linear.x = self.linear_speed
+                        self.cmd_vel_pub.publish(self.twist)
+                        return
+
+                elif self.mov_state == 2:
+                    self.linear_speed = 0.0
+                    self.angular_speed = 0.0
+                    self.twist.linear.x = self.linear_speed
+                    self.twist.angular.z = self.angular_speed
+
+                    self.robot_busy = False
+                    self.cmd_vel_pub.publish(self.twist)
+                    self.get_logger().info("Objetivo alcanzado. Esperando siguiente...")
+            
+            elif self.color_state == 2:
+                self.linear_speed -= 0.1
+                self.twist.linear.x = self.linear_speed
+                self.cmd_vel_pub.publish(self.twist)
+            
+            elif self.color_state == 1:
+                #self.mov_state = 0
+                self.linear_speed = 0.0
+                self.angular_speed = 0.0
+                self.twist.linear.x = self.linear_speed
+                self.twist.angular.z = self.angular_speed
+                self.cmd_vel_pub.publish(self.twist)
 
     def wrap_to_Pi(self, angle):
         result = np.fmod((angle + np.pi), (2*np.pi))
@@ -128,13 +251,6 @@ class OpenLoopCtrl(Node):
         self.prev_error_lin = error
         return output
 
-    '''def saturate_with_deadband(self, output, min_val, max_val):
-        if abs(output) < min_val:
-            return min_val
-        elif output > 0:
-            return min(output,max_val)
-        else:
-            return max(output, -max_val)'''
     def saturate_with_deadband(self, output, min_val, max_val):
         if output > 0:
             if abs(output) < min_val:
@@ -146,140 +262,9 @@ class OpenLoopCtrl(Node):
                 return -min_val
             else:
                 return max(output, -max_val)
-    '''def saturate_with_deadband(self, output, min_val, max_val):
-        if abs(output) < min_val:
-            return 0.0  # Deadband
-        if output > 0:
-            return min(output, max_val)
-        else:
-            return max(output, -max_val)'''
-
-        
-    def goals_callback(self, msg):
-        # Descomposición para almacenamiento local en variables 
-        new_point = np.array([msg.path.position.x, msg.path.position.y])
-        self.max_lin_vel = msg.max_lin_vel
-        self.min_lin_vel = msg.min_lin_vel
-        self.max_ang_vel = msg.max_ang_vel
-        self.min_ang_vel = msg.min_ang_vel
-
-        # Guardado en queue
-        self.path_queue.append((new_point))
-        self.get_logger().info(f'New trayectory: ({msg.path.position.x}, {msg.path.position.y})')
-    
-    def odometriaPuzzlebot_callback(self, msg):
-        self.X_robot = msg.pose.pose.position.x
-        self.Y_robot = msg.pose.pose.position.y
-
-        q = msg.pose.pose.orientation
-        quaternion = [q.w, q.x, q.y, q.z]
-        _, _, yaw = transforms3d.euler.quat2euler(quaternion)
-        self.Th_robot = self.wrap_to_Pi(yaw)
-    
-    def colors_callback(self, msg):
-        self.curr_color = msg.data
-    
-    def control_loop(self):
-        # Si el robot no está en movimiento y hay elementos faltantes en la queue, se realizan los calculos necesarios para efectuar la siguiente trayectoria 
-        if not self.robot_busy and self.path_queue:
-            # Siguiente objetivo
-            self.next_pose = np.array(self.path_queue.pop(0))
-            
-            # Cálculo de referencias
-            # Ángulo
-            self.ang_ref += self.delta_angle(self.prev_pose, self.curr_pose, self.next_pose)
-
-            # Distancia
-            dx_ref = self.next_pose[0] - self.curr_pose[0]
-            dy_ref = self.next_pose[1] - self.curr_pose[1]
-            self.dist_ref = np.hypot(dx_ref, dy_ref)
-            
-            self.prev_pose = self.curr_pose.copy()
-            self.curr_pose = self.next_pose.copy()
-
-            self.robot_busy = True
-            self.state = 0
-            self.get_logger().info(f'Objetivo: ({self.next_pose[0]}, {self.next_pose[1]}) | {np.rad2deg(self.ang_ref)} | {self.dist_ref} m')
-
-        # Si el robot está en movimiento, se trabaja entre los estados
-        if self.robot_busy:
-            self.get_logger().info(f"Pose: ({self.X_robot}, {self.Y_robot}, {np.rad2deg(self.Th_robot)}°) | Color ID: {self.curr_color}")
-            
-            if self.curr_color == 0 or self.curr_color == 3:
-                dx = self.next_pose[0] - self.X_robot
-                dy = self.next_pose[1] - self.Y_robot
-                
-                if self.state == 0:
-                    # ROTACIÓN
-                    error_ang = self.wrap_to_Pi(np.arctan2(dy,dx) - self.Th_robot)
-                    self.get_logger().info(f"Error angular: {np.rad2deg(error_ang):.2f}°")
-
-                    if (abs(error_ang) <= np.deg2rad(1.0)) or (error_ang == 0.0):
-                        self.angular_speed = 0.0
-                        self.twist.angular.z = self.angular_speed
-                                            
-                        self.integral_ang = 0.0
-                        self.prev_error_ang = 0.0
-                        self.state = 1
-                        
-                        self.cmd_vel_pub.publish(self.twist)
-                        self.get_logger().info("Rotación completada.")
-                        return
-                    else:
-                        
-                        self.angular_speed = self.saturate_with_deadband(self.pid_controller_angular(error_ang), self.min_ang_vel, self.max_ang_vel)
-                        self.twist.angular.z = self.angular_speed
-                        self.cmd_vel_pub.publish(self.twist)
-                        return
-
-                elif self.state == 1:
-                    # TRASLACIÓN
-                    error_lin = np.hypot(dx, dy)
-                    self.get_logger().info(f"Error lineal: {error_lin} m")
-
-                    if abs(error_lin) <= 0.1:
-                        self.linear_speed = 0.0
-                        self.twist.linear.x = self.linear_speed
-                        self.state = 2
-                        self.dist_robot = 0.0
-                        self.integral_lin = 0.0
-                        self.prev_error_lin = 0.0
-
-                        self.cmd_vel_pub.publish(self.twist)
-                        self.get_logger().info("Traslación completada.")
-                        return
-                        
-                    else:
-                        self.linear_speed = self.saturate_with_deadband(self.pid_controller_lineal(error_lin), self.min_lin_vel, self.max_lin_vel)
-                        self.twist.linear.x = self.linear_speed
-                        self.cmd_vel_pub.publish(self.twist)
-                        return
-
-                elif self.state == 2:
-                    self.linear_speed = 0.0
-                    self.angular_speed = 0.0
-                    self.twist.linear.x = self.linear_speed
-                    self.twist.angular.z = self.angular_speed
-
-                    self.robot_busy = False
-                    self.cmd_vel_pub.publish(self.twist)
-                    self.get_logger().info("Objetivo alcanzado. Esperando siguiente...")
-            
-            elif self.curr_color == 2:
-                self.linear_speed -= 0.1
-                self.twist.linear.x = self.linear_speed
-                self.cmd_vel_pub.publish(self.twist)
-            
-            elif self.curr_color == 1:
-                self.linear_speed = 0.0
-                self.angular_speed = 0.0
-                self.twist.linear.x = self.linear_speed
-                self.twist.angular.z = self.angular_speed
-                self.cmd_vel_pub.publish(self.twist)
-
 
 # Main
-def main(args=None):
+def main(args=None):#
     rclpy.init(args=args)
     node = OpenLoopCtrl()
     try:

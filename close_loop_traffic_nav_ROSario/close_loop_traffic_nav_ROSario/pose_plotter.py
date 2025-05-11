@@ -1,9 +1,12 @@
+# Nodo graficador de pose del robot | Half-Term Challenge
+
 import rclpy
 import matplotlib.pyplot as plt
 import numpy as np
+import signal
+
 from rclpy.node import Node
 from rclpy import qos
-
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Int32, Float32
 from rosario_path.msg import RosarioPath
@@ -61,7 +64,7 @@ class PosePlotter(Node):
             10
         )
 
-        self.timer = self.create_timer(1.0/200.0, self.update_plot)
+        self.timer = self.create_timer(1.0/250.0, self.update_plot)
 
         self.get_logger().info("PosePlotter node started. Listening to /odom and /color_ID...")
 
@@ -92,22 +95,35 @@ class PosePlotter(Node):
             self.ax.plot(point[0], point[1], marker='o', color='black')
 
         for x, y, c in zip(self.x_data, self.y_data, self.colors):
-            self.ax.plot(x, y, marker='*', color=c)
+            self.ax.plot(x, y, marker='o', color=c)
 
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
+    
+    def stop_handler(self, signum, frame):
+        '''Manejo de interrupción por teclado (ctrl + c)'''
+        self.get_logger().info("Deteniendo nodo por interrupción por teclado...")
+        raise SystemExit
 
 def main(args=None):
     rclpy.init(args=args)
     plotter = PosePlotter()
+    signal.signal(signal.SIGINT, plotter.stop_handler)
 
-    try:
+    '''try:
         rclpy.spin(plotter)
     except KeyboardInterrupt:
         plotter.get_logger().info('Interrupt received.')
     finally:
         plt.ioff()
         plt.show()
+        plotter.destroy_node()
+        rclpy.shutdown()'''
+    try:
+        rclpy.spin(plotter)
+    except SystemExit:
+        plotter.get_logger().info('Nodo finalizado limpiamente.')
+    finally:
         plotter.destroy_node()
         rclpy.shutdown()
 

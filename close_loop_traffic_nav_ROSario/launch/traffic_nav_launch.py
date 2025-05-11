@@ -2,6 +2,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
+from launch.actions import ExecuteProcess, TimerAction
 from launch_ros.actions import Node
 
 def generate_launch_description():
@@ -11,6 +12,16 @@ def generate_launch_description():
                                     'params.yaml'
     )
     
+    micro_ros_agent = ExecuteProcess(
+                                    cmd=['ros2', 'launch', 'puzzlebot_ros', 'micro_ros_agent.launch.py'], #ros2 launch puzzlebot_ros micro_ros_agent.launch.py
+                                    output='screen'
+                                    )
+    
+    camera_agent = ExecuteProcess(
+                                    cmd=['ros2', 'launch', 'ros_deep_learning', 'video_source.ros2.launch'], #ros2 launch ros_deep_learning video_source.ros2.launch
+                                    output='screen'
+                                    )
+
     puzzle_localisation = Node(
                             name="localisation_node",
                             package="close_loop_traffic_nav_ROSario",
@@ -33,12 +44,22 @@ def generate_launch_description():
                         parameters=[config]
                       )
     
-    pose_plotter = Node(
-                        name="pose_plotter_node",
-                        package="close_loop_traffic_nav_ROSario",
-                        executable="pose_plotter",
-                        output = 'screen'
-                      )
+    colorIdentificator = Node(
+                                name="color_identificator",
+                                package="close_loop_traffic_nav_ROSario",
+                                executable="colorIdentificator",
+                                output = 'screen'
+                              )
+    
+    delayed_camera = TimerAction(
+                                period=5.0,
+                                actions=[camera_agent]
+                               )
+    
+    delayed_puzzlebot = TimerAction(
+                                period=10.0,
+                                actions=[puzzle_localisation, puzzle_controller, puzzle_path, colorIdentificator]
+                               )
 
-    l_d = LaunchDescription([puzzle_localisation,puzzle_controller, puzzle_path])
+    l_d = LaunchDescription([micro_ros_agent, delayed_camera, delayed_puzzlebot])
     return l_d

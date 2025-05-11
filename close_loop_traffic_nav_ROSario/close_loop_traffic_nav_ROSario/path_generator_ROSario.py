@@ -1,6 +1,10 @@
+#Nodo Path Generator | Half-Term Challenge
+
 #Imports
 import numpy as np
 import rclpy
+import signal
+
 from rclpy.node import Node
 from std_msgs.msg import Float32
 from geometry_msgs.msg import Pose
@@ -11,30 +15,20 @@ class PathNode(Node):
     def __init__(self):
         super().__init__('path_ROSario')
 
-        self.t = []
+        #self.t = []
 
-        #Declara los parametros que van en el parameter file
-        self.declare_parameter('coordenadas_x', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY) # self.declare_parameter('coordenadas_x', [])
-        self.declare_parameter('coordenadas_y', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY) # self.declare_parameter('coordenadas_y', [])
-        
-
-        self.declare_parameter('lin_vel', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY) # self.declare_parameter('tiempo', [])
-        
-        self.declare_parameter('ang_vel', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY) #self.declare_parameter('velocidad', [])
-       
+        # Declararión local de parámetros
+        self.declare_parameter('coordenadas_x', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter('coordenadas_y', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter('lin_vel', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter('ang_vel', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter('area', 0.0)
 
-        self.x = self.get_parameter('coordenadas_x').get_parameter_value().double_array_value # self.x = self.get_parameter('coordenadas_x').value
-
-        self.y = self.get_parameter('coordenadas_y').get_parameter_value().double_array_value # self.get_parameter('coordenadas_y').value
-        
-        # Cabiar estos parametros
-
-        self.lin_vel = self.get_parameter('lin_vel').get_parameter_value().double_array_value # self.get_parameter('tiempo').value
-        self.ang_vel = self.get_parameter('ang_vel').get_parameter_value().double_array_value # self.get_parameter('velocidad').value
-
-        # lee arriba 
-
+        # Lectura de parámetros del parameter file
+        self.x = self.get_parameter('coordenadas_x').get_parameter_value().double_array_value
+        self.y = self.get_parameter('coordenadas_y').get_parameter_value().double_array_value
+        self.lin_vel = self.get_parameter('lin_vel').get_parameter_value().double_array_value
+        self.ang_vel = self.get_parameter('ang_vel').get_parameter_value().double_array_value
         self.a = self.get_parameter('area').value
 
         # Variables locales
@@ -155,14 +149,28 @@ class PathNode(Node):
         self.get_logger().info(f" Publicado mensaje {self.index_publicacion}")
         self.index_publicacion += 1
 
+    def stop_handler(self, signum, frame):
+        '''Manejo de interrupción por teclado (ctrl + c)'''
+        self.get_logger().info("Deteniendo nodo por interrupción por teclado...")
+        raise SystemExit
 
 def main(args=None):
     rclpy.init(args=args)
     nodo = PathNode()
-    rclpy.spin(nodo)
+    signal.signal(signal.SIGINT, nodo.stop_handler)
+
+    '''rclpy.spin(nodo)
     nodo.destroy_node()
-    rclpy.shutdown()
-       
+    rclpy.shutdown()'''
+    
+    try:
+        rclpy.spin(nodo)
+    except SystemExit:
+        nodo.get_logger().info('Nodo finalizado limpiamente.')
+    finally:
+        nodo.destroy_node()
+        rclpy.shutdown()
+    
 #Execute Node
 if __name__ == '__main__':
     main()

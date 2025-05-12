@@ -22,26 +22,33 @@ class PathNode(Node):
         self.declare_parameter('coordenadas_y', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter('lin_vel', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter('ang_vel', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY)
-        self.declare_parameter('area', 0.0)
+        self.declare_parameter('origen_robot', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY)
+        self.declare_parameter('area_largo', 0.0)
+        self.declare_parameter('area_ancho', 0.0)
 
         # Lectura de parámetros del parameter file
         self.x = self.get_parameter('coordenadas_x').get_parameter_value().double_array_value
         self.y = self.get_parameter('coordenadas_y').get_parameter_value().double_array_value
         self.lin_vel = self.get_parameter('lin_vel').get_parameter_value().double_array_value
         self.ang_vel = self.get_parameter('ang_vel').get_parameter_value().double_array_value
-        self.a = self.get_parameter('area').value
+        self.origen_robot = self.get_parameter('origen_robot').get_parameter_value().double_array_value
+        self.area_largo = self.get_parameter('area_largo').value
+        self.area_ancho = self.get_parameter('area_ancho').value
 
         # Variables locales
-        self.pwm = []
-        self.time_exe = []
+        #self.pwm = []
+        #self.time_exe = []
 
-        self.publisher_ = self.create_publisher(RosarioPath, 'pose',10)
+        self.msg = RosarioPath()
+        self.goals_publisher = self.create_publisher(RosarioPath, 'pose', 10)
 
         self.index_publicacion = 0
         self.x_verified = []
         self.y_verified = []
         self.lin_verified =[]
         self.ang_verified = []
+
+        self.path_verified = False
 
         self.calculate_path()
 
@@ -53,101 +60,113 @@ class PathNode(Node):
         Verifica que las velocidades sean correctas
         """
 
-        self.get_logger().info(f" Iniciando Comprobacion")
+        self.get_logger().info(f"Iniciando Comprobacion")
 
-        # Definicion del area de trabajo
-        limite = self.a/2
+        # Límites del área de trabajo
+        xmin_lim = -self.area_largo/2
+        xmax_lim = self.area_largo/2
+        
+        ymin_lim = -self.area_ancho/2
+        ymax_lim = self.area_ancho/2
 
-        limite_min = -limite
-        limite_max = limite
-
-        # Velocidad Lineal
+        # Límites de velocidad Lineal
         v_lin_min = 0.025
         v_lin_max = 0.38
 
-        # Velocidad Lineal
+        # Límites de velocidad angular
         v_ang_min = 0.29
         v_ang_max = 4.0
 
-
-        # Temp variable para calculo de distancias
-        coords=[(0.0,0.0)]
-
+        # Matriz de transformación homogenea con el origen del robot respecto al mundo
+        mat_trans =np.array([
+                            [1.0, 0.0, 0.0, self.origen_robot[0]],
+                            [0.0, 1.0, 0.0, self.origen_robot[1]],
+                            [0.0, 0.0, 1.0, 0.0],
+                            [0.0, 0.0, 0.0, 1.0]
+                            ])
+        
         # Se verifica si el vector esta vacio
-        if len(self.x)==0:
-            self.get_logger().info(f" No se a dado un vector de coordenadas")
+        if len(self.x)==0 or len(self.y)==0:
+            self.get_logger().info(f"No se han declarado vectores de coordenadas completos")
             return
 
-        # Se verifica que los vectores x y sean del mismo tamaño (Que no exista coordenadas incompletas)
-        if len(self.x) == len(self.y):
-            for i in range(len(self.x)):
+        # Verificación de las coordenadas de navegación
+        if len(self.x) == len(self.y): # Se verifica que los vectores X y Y sean del mismo tamaño (Que no exista coordenadas incompletas)
+            for i in range(len(self.x)): 
+                tmp_coor = np.array([[self.x[i]],[self.y[i]],[0],[1]])
+                coor_trans = mat_trans @ tmp_coor
                 # Se lee que cada coordenada dada este dentro del area de trabajo
-                if (self.x[i] >= limite_min and self.x[i] <= limite_max) and (self.y[i] >= limite_min and self.y[i] <= limite_max):
+                if (coor_trans[0][0] >= xmin_lim and coor_trans[0][0] <= xmax_lim) and (coor_trans[1][0] >= ymin_lim and coor_trans[1][0] <= ymax_lim):
                     self.x_verified.append(self.x[i])
                     self.y_verified.append(self.y[i])
-                    self.get_logger().info(f" Punto verificado {i}")
-                    coords.append((self.x[i],self.y[i]))
+                    self.get_logger().info(f"El punto ({self.x[i]}, {self.y[i]}) transformado a ({coor_trans[0][0]}, {coor_trans[1][0]}) se encuentra en el rango del área de trabajo")
+                    #coords.append((self.x[i],self.y[i]))
                 else:
-                    self.get_logger().info(f" El punto dado {i} no esta dentro de los limites. ({self.x[i]}, {self.y[i]}), area: {self.a}")
+                    self.get_logger().info(f"El punto ({self.x[i]}, {self.y[i]}) transformado a ({coor_trans[0][0]}, {coor_trans[1][0]}) no esta dentro de los limites del área de trabajo (x=[{xmin_lim}, {xmax_lim}], y=[{ymin_lim}, {ymax_lim}])")
                     return
         else:
-            self.get_logger().info(f" El tamaño de vector 'x' no es el mismo que el vector 'y'")
+            self.get_logger().info(f"El tamaño de los vectores de coordenadas X y Y no coinciden, hay coordenadas incompletas.")
             return
         
+        # Verificación de los límites de la velocidad lineal
         if len(self.lin_vel) == 2:
             if (self.lin_vel[0] >= v_lin_min and self.lin_vel[0]<= v_lin_max):
-                self.lin_verified.append(self.lin_vel[0])
-                if (self.lin_vel[1] > self.lin_vel[0] and self.lin_vel[1] <= v_lin_max):
-                    self.lin_verified.append(self.lin_vel[1])
-                else:
-                    self.get_logger().info(f" El valor lineal maximo no esta en rango")  
+                self.lin_verified.append(self.lin_vel[0])  
             else:
-                self.get_logger().info(f" El valor lineal minimo no esta en rango")    
+                self.get_logger().info(f"El valor lineal minimo no esta dentro del rango")
+                return
+            
+            if (self.lin_vel[1] > self.lin_vel[0] and self.lin_vel[1] <= v_lin_max):
+                self.lin_verified.append(self.lin_vel[1])
+            else:
+                self.get_logger().info(f"El valor lineal maximo no esta dentro del rango")
+                return    
         else:
-            self.get_logger().info(f" No se han introducido correctanente los limites lineales")
+            self.get_logger().info(f"Los límites de la velocidad lineal están incompletos")
             return
 
+        # Verificación de los límites de la velocidad angular
         if len(self.ang_vel) == 2:
             if (self.ang_vel[0] >= v_ang_min and self.ang_vel[0]<= v_ang_max):
-                self.ang_verified.append(self.ang_vel[0])
-                if (self.ang_vel[1] > self.ang_vel[0] and self.ang_vel[1] <= v_ang_max):
-                    self.ang_verified.append(self.ang_vel[1])
-                else:
-                    self.get_logger().info(f" El valor angular maximo no esta en rango")  
+                self.ang_verified.append(self.ang_vel[0])  
             else:
-                self.get_logger().info(f" El valor angular minimo no esta en rango")    
+                self.get_logger().info(f" El valor angular minimo no esta en rango")
+                return
+
+            if (self.ang_vel[1] > self.ang_vel[0] and self.ang_vel[1] <= v_ang_max):
+                self.ang_verified.append(self.ang_vel[1])
+            else:
+                self.get_logger().info(f" El valor angular maximo no esta en rango")
+                return    
         else:
-            self.get_logger().info(f" No se han introducido correctanente los limites angulares")
+            self.get_logger().info(f"Los límites de la velocidad angular están incompletos")
             return
+        
+        self.path_verified = True
 
     def publicar_mensaje(self):
-        # Contador de cuantos puntos se tienen que mandar al topcio
-        if self.index_publicacion >= len(self.x_verified):
-            self.get_logger().info("Todos los mensajes han sido publicados")
-            self.timer.cancel() 
-            return
+        if self.path_verified:
+            # Control de publicación en base al número de coordenadas
+            if self.index_publicacion >= len(self.x_verified):
+                self.get_logger().info("Todos los mensajes han sido publicados")
+                self.timer.cancel() 
+                return
 
-        # Se instancia el custom msg
-        msg = RosarioPath()
+            # Declaración de los datos para cada parte del mensaje personalizado
+            self.msg.path.position.x = self.x_verified[self.index_publicacion]
+            self.msg.path.position.y = self.y_verified[self.index_publicacion]
+            self.msg.max_lin_vel = self.lin_verified[1]
+            self.msg.min_lin_vel = self.lin_verified[0]
+            self.msg.max_ang_vel = self.ang_verified[1]
+            self.msg.min_ang_vel = self.ang_verified[0]
 
-        # Se crea el objeto geometry_msg/Pose
-        
-        msg.path.position.x = self.x_verified[self.index_publicacion]
-        msg.path.position.y = self.y_verified[self.index_publicacion]
-
-        # Modificar esto
-
-        msg.max_lin_vel = self.lin_verified[1]
-        msg.min_lin_vel = self.lin_verified[0]
-        msg.max_ang_vel = self.ang_verified[1]
-        msg.min_ang_vel = self.ang_verified[0]
-
-        # Modificar arriba
-
-        # Se publica
-        self.publisher_.publish(msg)
-        self.get_logger().info(f" Publicado mensaje {self.index_publicacion}")
-        self.index_publicacion += 1
+            # Publicación del mensaje personalizado
+            self.goals_publisher.publish(self.msg)
+            self.get_logger().info(f" Publicado mensaje {self.index_publicacion}")
+            self.index_publicacion += 1
+        else:
+            self.get_logger().info(f"Errores en el parameter file (/config/params.yaml)")
+            self.timer.cancel()
 
     def stop_handler(self, signum, frame):
         '''Manejo de interrupción por teclado (ctrl + c)'''

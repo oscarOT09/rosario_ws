@@ -58,7 +58,7 @@ def generate_launch_description():
     
     delayed_puzzlebot = TimerAction(
                                 period=10.0,
-                                actions=[puzzle_localisation, puzzle_controller, puzzle_path, colorIdentificator]
+                                actions=[puzzle_path, puzzle_localisation, puzzle_controller, colorIdentificator]
                                )
 
     l_d = LaunchDescription([micro_ros_agent, delayed_camera, delayed_puzzlebot])

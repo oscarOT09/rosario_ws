@@ -97,12 +97,10 @@ class DeadReckoning(Node):
 
             # Robot theta
             self.Th += (self.Omega * dt) * self.factor_th
-            #self.get_logger().info(f"Angulo: {np.rad2deg(self.Th)}°")
             # Robot position in x
             self.X += (self.V * np.cos(self.Th) * dt) * self.factor_x
             # Robot position in y
             self.Y += (self.V * np.sin(self.Th) * dt) * self.factor_y
-            #self.get_logger().info(f"Pose: ({self.X}, {self.Y}, {np.rad2deg(self.Th)}° no)")
 
             self.last_time = current_time
 

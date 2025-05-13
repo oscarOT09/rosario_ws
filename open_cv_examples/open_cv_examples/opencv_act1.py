@@ -15,17 +15,20 @@ class ColorDetectionNode(Node):
         self.bridge = CvBridge()
 
         # Define HSV range for blue color detection
-        self.yellow_lower = np.array([25, 15, 165], np.uint8)
-        self.yellow_upper = np.array([35, 255, 255], np.uint8)
+        self.yellow_lower = np.array([25, 20, 165], np.uint8)
+        self.yellow_upper = np.array([35, 200, 255], np.uint8)
 
         self.green_lower = np.array([60, 100, 100], np.uint8)
         self.green_upper = np.array([80, 255, 255], np.uint8)
 
         self.red1_lower = np.array([0, 100, 0], np.uint8)
-        self.red1_upper = np.array([10, 255, 255], np.uint8)
+        self.red1_upper = np.array([5, 255, 255], np.uint8)
 
         self.red2_lower = np.array([175, 100, 0], np.uint8)
         self.red2_upper = np.array([180, 255, 255], np.uint8)
+
+        self.white_lower = np.array([0, 10, 200], np.uint8)
+        self.white_upper = np.array([80, 255, 250], np.uint8)     
 
         self.color_id = 0
 
@@ -64,9 +67,14 @@ class ColorDetectionNode(Node):
         if self.img is None:
             self.get_logger().info('Waiting for image data...')
             return
-        
-        flip_img = cv.flip(self.img, 0)
-        flip_img = cv.flip(flip_img, 1)
+
+        #flip_img = cv.flip(self.img, 0)
+        #flip_img = cv.flip(self.img, 1)
+
+        alto = self.img.shape[0]
+
+        corte = int(alto*0.7)
+        flip_img = self.img[:corte,:]
 
         # Step 1: Reduce noise with Gaussian blur
         blurred_img = cv.GaussianBlur(flip_img, (9, 9), 2)
@@ -80,20 +88,29 @@ class ColorDetectionNode(Node):
         mask_red    = cv.bitwise_or(red_mask1,red_mask2)
         mask_green  = cv.inRange(hsv_img, self.green_lower, self.green_upper)
         mask_yellow = cv.inRange(hsv_img,self.yellow_lower, self.yellow_upper)
+        mask_white  = cv.inRange(hsv_img,self.white_lower, self.white_upper)
 
-        kernel =  cv.getStructuringElement(cv.MORPH_ELLIPSE,(3,3))
+        kernel =  cv.getStructuringElement(cv.MORPH_ELLIPSE,(5,5))
 
-        mask_green = cv.morphologyEx(mask_green, cv.MORPH_DILATE, kernel)
-        mask_green = cv.morphologyEx(mask_green, cv.MORPH_OPEN, kernel, iterations=2)
-        mask_green = cv.morphologyEx(mask_green, cv.MORPH_CLOSE, kernel, iterations= 5)
+        mask_trafic = cv.morphologyEx(mask_white, cv.MORPH_OPEN, kernel, iterations=3)
+        
+        # Detectar círculos
+        mask_blur = cv.GaussianBlur(mask_trafic, (9, 9), 2)
+        circles = cv.HoughCircles(mask_blur, cv.HOUGH_GRADIENT, dp=1.2, minDist=20,
+                               param1=50, param2=30, minRadius=5, maxRadius=100)
+        
+        # Crear máscara circular expandida
+        circle_mask = np.zeros(mask_trafic.shape, dtype=np.uint8)
+        if circles is not None:
+            circles = np.uint16(np.around(circles))
+            for (x, y, r) in circles[0, :]:
+                cv.circle(circle_mask, (x, y), r + r//10, 255, -1)       
 
-        mask_yellow = cv.morphologyEx(mask_yellow, cv.MORPH_DILATE, kernel)
-        mask_yellow = cv.morphologyEx(mask_yellow, cv.MORPH_OPEN, kernel, iterations=2)
-        mask_yellow = cv.morphologyEx(mask_yellow, cv.MORPH_CLOSE, kernel, iterations= 5)
-
-        mask_red = cv.morphologyEx(mask_red, cv.MORPH_DILATE, kernel)
-        mask_red = cv.morphologyEx(mask_red, cv.MORPH_OPEN, kernel, iterations=2)
-        mask_red = cv.morphologyEx(mask_red, cv.MORPH_CLOSE, kernel, iterations= 5)
+        # Resultados
+            resultado = cv.bitwise_and(flip_img,flip_img, mask=circle_mask)
+            mask_red = cv.bitwise_and(mask_red, circle_mask)
+            mask_yellow = cv.bitwise_and(mask_yellow, circle_mask)
+            mask_green = cv.bitwise_and(mask_green, circle_mask)
 
         # Conteo de píxeles
         red_count = cv.countNonZero(mask_red)
@@ -101,7 +118,7 @@ class ColorDetectionNode(Node):
         green_count = cv.countNonZero(mask_green)
         
         # Determinar el color encendido
-        if max(red_count, yellow_count, green_count) > 100:  # Umbral mínimo
+        if max(red_count, yellow_count, green_count) > 150:  # Umbral mínimo
             if red_count == max(red_count, yellow_count, green_count):
                 self.color_id = 1
             elif yellow_count == max(red_count, yellow_count, green_count):

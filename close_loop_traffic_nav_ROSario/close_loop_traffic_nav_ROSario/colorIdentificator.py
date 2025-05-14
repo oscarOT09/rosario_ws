@@ -7,6 +7,8 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from std_msgs.msg import Int32
+from datetime import datetime
+
 
 class colorIdentificator(Node):
     def __init__(self):
@@ -20,16 +22,18 @@ class colorIdentificator(Node):
         # Define HSV range for blue color detection
         self.lower_red1 = np.array([0, 100, 0])
         self.upper_red1 = np.array([5, 255, 255])
-        self.lower_red2 = np.array([175, 60, 0])
+        self.lower_red2 = np.array([175, 100, 0])
         self.upper_red2 = np.array([180, 255, 255])
+        
         self.lower_yellow = np.array([25, 15, 165])
         self.upper_yellow = np.array([35, 255, 255])
-        self.lower_green = np.array([60, 80, 80])
+        
+        self.lower_green = np.array([60, 100, 100])
         self.upper_green = np.array([80, 255, 255])
-        self.lower_white = (0, 50, 180)
+
+        self.lower_white = (0, 40, 190)
         self.upper_white = (92, 255, 255)
 
-        self.N = 25
         self.color_id = 0
 
         self.color_pub = self.create_publisher(Int32, 'color_id', 10)
@@ -53,12 +57,6 @@ class colorIdentificator(Node):
         try:
             self.img = self.bridge.imgmsg_to_cv2(msg, "bgr8")
 
-            
-
-            # Guarda el frame
-            '''if self.out is not None:
-                self.out.write(self.img)'''
-
         except Exception as e:
             self.get_logger().error(f'Error de conversión: {e}')
 
@@ -66,6 +64,7 @@ class colorIdentificator(Node):
         if self.img is None:
             self.get_logger().info('Esperando imagen...')
             return
+        self.color_id = 0
         # Aquí vendría tu lógica de procesamiento de color...
         flip_img = cv.flip(self.img, 0)
         flip_img = cv.flip(flip_img, 1)
@@ -74,16 +73,24 @@ class colorIdentificator(Node):
 
         corte = int(alto*0.45)
         flip_img_cut = flip_img[corte:,:]
-
+        cut_img = flip_img_cut.copy()
         img_rgb = cv.cvtColor(flip_img_cut, cv.COLOR_BGR2RGB)
         img_hsv = cv.cvtColor(img_rgb, cv.COLOR_RGB2HSV)
 
         # Inicializa el video solo una vez (después de recibir el primer frame)
         if not self.video_writer_initialized:
             height, width, _ = flip_img_cut.shape
-            self.out = cv.VideoWriter('output.mp4',
+            '''self.out = cv.VideoWriter('output.mp4',
                                         cv.VideoWriter_fourcc(*'mp4v'),
-                                        5, (width, height))
+                                        5, (width, height))'''
+            # Generar nombre dinámico: día_mes_año_hora_minuto_segundo
+            timestamp = datetime.now().strftime('%d_%m_%Y_%H_%M_%S')
+            filename = f'{timestamp}.mp4'
+
+            self.out = cv.VideoWriter(filename,
+                                    cv.VideoWriter_fourcc(*'mp4v'),
+                                    5, (width, height))
+
             self.video_writer_initialized = True
             self.get_logger().info('VideoWriter inicializado con resolución: {}x{}'.format(width, height))
             
@@ -119,7 +126,7 @@ class colorIdentificator(Node):
                 yellow_count = cv.countNonZero(mask_yellow)
                 green_count = cv.countNonZero(mask_green)
 
-                color_detectado = "Desconocido"
+                #color_detectado = "Desconocido"
                 color_bgr = (255, 255, 255)  # Blanco por defecto
 
                 if max(red_count, yellow_count, green_count) > 50:
@@ -135,7 +142,7 @@ class colorIdentificator(Node):
                     else:
                         self.color_id = 0
 
-                print(f"Color detectado: {color_detectado}")
+                #print(f"Color detectado: {self.}")
 
                 # Dibujar el círculo en la imagen original con el color detectado
                 ################################################################
@@ -148,7 +155,7 @@ class colorIdentificator(Node):
         resultado_rgb = cv.cvtColor(mask_white, cv.COLOR_BGR2RGB)
 
         # Publish the cleaned binary image
-        processed_img_msg = self.bridge.cv2_to_imgmsg(resultado_rgb, encoding='rgb8')
+        #processed_img_msg = self.bridge.cv2_to_imgmsg(resultado_rgb, encoding='rgb8')
         self.out.write(flip_img_cut)
         self.get_logger().info(f"Color detectado: {self.color_id}")
         #self.image_pub.publish(processed_img_msg)

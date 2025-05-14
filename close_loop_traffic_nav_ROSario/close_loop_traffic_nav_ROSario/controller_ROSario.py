@@ -77,7 +77,7 @@ class OpenLoopCtrl(Node):
         self.prev_error_lin = 0.0
 
         # Bandera para actualización de los parámetros de los controladores
-        self.declare_parameter('controllers_ready', False)
+        self.declare_parameter('controllers_ready', True)
         self.controllers_ready = self.get_parameter('controllers_ready').value
 
         # Mensaje de velocidades para el Puzzlebot
@@ -91,6 +91,8 @@ class OpenLoopCtrl(Node):
         self.robot_busy = False
 
         # Estado de identificación de color
+        self.prev_color = 0
+        self.new_color = 0
         self.color_state = 0
 
         # Estado
@@ -135,7 +137,14 @@ class OpenLoopCtrl(Node):
         self.Th_robot = self.wrap_to_Pi(yaw)
     
     def colors_callback(self, msg):
-        self.color_state = msg.data
+        self.new_color = msg.data
+        
+        if (self.prev_color == 0 and self.new_color != 0) or (self.prev_color == 3 and (self.new_color == 2 or self.new_color == 1)) or (self.prev_color == 2 and (self.new_color == 1)) or (self.prev_color == 1 and (self.new_color == 3)):
+            self.color_state = self.new_color
+        else:
+            self.color_state = self.prev_color
+        
+        self.prev_color = self.color_state
     
     def parameters_callback(self, params):
         for param in params:
@@ -219,8 +228,10 @@ class OpenLoopCtrl(Node):
 
         # Si el robot está en movimiento, se trabaja entre los estados
         if self.robot_busy and self.controllers_ready:
-            self.get_logger().info(f"Pose: ({self.X_robot}, {self.Y_robot}, {np.rad2deg(self.Th_robot)}°) | Color ID: {self.color_state}")
             
+            self.get_logger().info(f"Pose: ({self.X_robot}, {self.Y_robot}, {np.rad2deg(self.Th_robot)}°) | Color ID: {self.color_state}")
+            #self.color_state = 0
+
             dx = self.next_pose[0] - self.X_robot
             dy = self.next_pose[1] - self.Y_robot
 
@@ -360,6 +371,9 @@ class OpenLoopCtrl(Node):
     
     def stop_handler(self, signum, frame):
         '''Manejo de interrupción por teclado (ctrl + c)'''
+        self.twist.linear.x = 0
+        self.twist.angular.z = 0
+        self.cmd_vel_pub.publish(self.twist)
         self.get_logger().info("Deteniendo nodo por interrupción por teclado...")
         raise SystemExit
 

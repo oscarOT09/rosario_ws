@@ -1,3 +1,6 @@
+# Nodo identificador de colores | Half-Term Challenge
+# Equipo ROSario
+
 import rclpy
 import cv2 as cv
 import numpy as np
@@ -64,8 +67,9 @@ class colorIdentificator(Node):
         if self.img is None:
             self.get_logger().info('Esperando imagen...')
             return
+        
         self.color_id = 0
-        # Aquí vendría tu lógica de procesamiento de color...
+
         flip_img = cv.flip(self.img, 0)
         flip_img = cv.flip(flip_img, 1)
 
@@ -108,9 +112,7 @@ class colorIdentificator(Node):
             for (x, y, r) in circles[0, :]:
                 # Crear máscara para esta región circular
                 circle_mask = np.zeros(mask_trafic.shape, dtype=np.uint8)
-                ######################################################
-                cv.circle(circle_mask, (x, y), r + ((r//10)+1), 255, -1) 
-                ######################################################
+                cv.circle(circle_mask, (x, y), r + ((r//10)+1), 255, -1)
 
                 # Aplicar la máscara para cada color
                 mask_red = cv.bitwise_or(
@@ -126,7 +128,6 @@ class colorIdentificator(Node):
                 yellow_count = cv.countNonZero(mask_yellow)
                 green_count = cv.countNonZero(mask_green)
 
-                #color_detectado = "Desconocido"
                 color_bgr = (255, 255, 255)  # Blanco por defecto
 
                 if max(red_count, yellow_count, green_count) > 50:
@@ -142,33 +143,19 @@ class colorIdentificator(Node):
                     else:
                         self.color_id = 0
 
-                #print(f"Color detectado: {self.}")
-
                 # Dibujar el círculo en la imagen original con el color detectado
-                ################################################################
                 cv.circle(flip_img_cut, (x, y), r + ((r//10)+1), color_bgr, 3)
-                ################################################################
 
 
-        # Paso 8 : Aplicar la mascara a la imagen original para ver los colores
-        #resultado = cv.bitwise_and(flip_img, flip_img, mask=color_mask)
-        resultado_rgb = cv.cvtColor(mask_white, cv.COLOR_BGR2RGB)
+        # Conversión de la imagen al formato para su publicación
+        resultado_rgb = cv.cvtColor(flip_img_cut, cv.COLOR_BGR2RGB)
 
-        # Publish the cleaned binary image
-        #processed_img_msg = self.bridge.cv2_to_imgmsg(resultado_rgb, encoding='rgb8')
-        self.out.write(flip_img_cut)
         self.get_logger().info(f"Color detectado: {self.color_id}")
-        #self.image_pub.publish(processed_img_msg)
         self.color_msg.data = self.color_id
         self.color_pub.publish(self.color_msg)
-    
-    '''def destroy_node(self):
-        # Libera el VideoWriter si fue inicializado
-        if self.out is not None:
-            self.out.release()
-            cv.destroyAllWindows()
-            self.get_logger().info('VideoWriter liberado y ventanas cerradas.')
-        super().destroy_node()'''
+        self.out.write(flip_img_cut)
+        #self.image_pub.publish(processed_img_msg)
+        #processed_img_msg = self.bridge.cv2_to_imgmsg(resultado_rgb, encoding='rgb8')
 
     def stop_handler(self, signum, frame):
         '''Manejo de interrupción por teclado (ctrl + c)'''
@@ -183,14 +170,7 @@ def main(args=None):
     rclpy.init(args=args)
     node = colorIdentificator()
     signal.signal(signal.SIGINT, node.stop_handler)
-
-    '''try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()'''
+    
     try:
         rclpy.spin(node)
     except SystemExit:

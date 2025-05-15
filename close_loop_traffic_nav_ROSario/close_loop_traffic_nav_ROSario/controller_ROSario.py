@@ -1,4 +1,5 @@
 # Nodo de control | Mid-term Challenge
+# Equipo ROSario
 
 # Importaciones necesarias
 import rclpy
@@ -269,10 +270,6 @@ class OpenLoopCtrl(Node):
                     self.robot_busy = False
                     self.get_logger().info("Objetivo alcanzado. Esperando siguiente...")
                     self.get_logger().info("------------------------------------------------------------------------------------------")
-                
-                '''self.twist.linear.x = self.linear_speed
-                self.twist.angular.z = self.angular_speed
-                self.cmd_vel_pub.publish(self.twist)'''
 
             elif self.color_state == 2:
                 if self.mov_state == 0: # ROTACIÓN
@@ -309,18 +306,11 @@ class OpenLoopCtrl(Node):
 
                     self.get_logger().info("Objetivo alcanzado. Esperando siguiente...")
                     self.get_logger().info("------------------------------------------------------------------------------------------")
-                
-                '''self.twist.linear.x = self.linear_speed
-                self.twist.angular.z = self.angular_speed
-                self.cmd_vel_pub.publish(self.twist)'''
             
             elif self.color_state == 1:
                 #self.mov_state = 0
                 self.linear_speed = 0.0
                 self.angular_speed = 0.0
-                '''self.twist.linear.x = self.linear_speed
-                self.twist.angular.z = self.angular_speed
-                self.cmd_vel_pub.publish(self.twist)'''
                 self.get_logger().info('Detenido por ver rojo')
 
             self.twist.linear.x = self.linear_speed
@@ -382,14 +372,6 @@ def main(args=None):#
     rclpy.init(args=args)
     node = OpenLoopCtrl()
     signal.signal(signal.SIGINT, node.stop_handler)
-
-    '''try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()'''
     
     try:
         rclpy.spin(node)

@@ -15,8 +15,6 @@ class PathNode(Node):
     def __init__(self):
         super().__init__('path_ROSario')
 
-        #self.t = []
-
         # Declararión local de parámetros
         self.declare_parameter('coordenadas_x', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY)
         self.declare_parameter('coordenadas_y', rclpy.parameter.Parameter.Type.DOUBLE_ARRAY)
@@ -34,10 +32,6 @@ class PathNode(Node):
         self.origen_robot = self.get_parameter('origen_robot').get_parameter_value().double_array_value
         self.area_largo = self.get_parameter('area_largo').value
         self.area_ancho = self.get_parameter('area_ancho').value
-
-        # Variables locales
-        #self.pwm = []
-        #self.time_exe = []
 
         self.msg = RosarioPath()
         self.goals_publisher = self.create_publisher(RosarioPath, 'pose', 10)
@@ -100,7 +94,6 @@ class PathNode(Node):
                     self.x_verified.append(self.x[i])
                     self.y_verified.append(self.y[i])
                     self.get_logger().info(f"El punto ({self.x[i]}, {self.y[i]}) transformado a ({coor_trans[0][0]}, {coor_trans[1][0]}) se encuentra en el rango del área de trabajo")
-                    #coords.append((self.x[i],self.y[i]))
                 else:
                     self.get_logger().info(f"El punto ({self.x[i]}, {self.y[i]}) transformado a ({coor_trans[0][0]}, {coor_trans[1][0]}) no esta dentro de los limites del área de trabajo (x=[{xmin_lim}, {xmax_lim}], y=[{ymin_lim}, {ymax_lim}])")
                     return
@@ -177,10 +170,6 @@ def main(args=None):
     rclpy.init(args=args)
     nodo = PathNode()
     signal.signal(signal.SIGINT, nodo.stop_handler)
-
-    '''rclpy.spin(nodo)
-    nodo.destroy_node()
-    rclpy.shutdown()'''
     
     try:
         rclpy.spin(nodo)

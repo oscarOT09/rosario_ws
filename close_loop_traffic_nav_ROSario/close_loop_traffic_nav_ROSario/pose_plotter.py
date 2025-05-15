@@ -109,16 +109,7 @@ def main(args=None):
     rclpy.init(args=args)
     plotter = PosePlotter()
     signal.signal(signal.SIGINT, plotter.stop_handler)
-
-    '''try:
-        rclpy.spin(plotter)
-    except KeyboardInterrupt:
-        plotter.get_logger().info('Interrupt received.')
-    finally:
-        plt.ioff()
-        plt.show()
-        plotter.destroy_node()
-        rclpy.shutdown()'''
+    
     try:
         rclpy.spin(plotter)
     except SystemExit:

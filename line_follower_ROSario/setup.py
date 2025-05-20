@@ -28,6 +28,7 @@ setup(
             'lineDetector_ROSario = line_follower_ROSario.lineDetector_ROSario:main',
             'localisation_ROSario = line_follower_ROSario.localisation_ROSario:main',
             'trafficLightDetector = line_follower_ROSario.trafficLightDetector_ROSario:main',
+            'camera_recorder = line_follower_ROSario.camera_recorder:main',
         ],
     },
 )

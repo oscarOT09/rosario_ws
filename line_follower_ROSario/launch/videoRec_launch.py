@@ -17,9 +17,9 @@ def generate_launch_description():
                                     )
     
     camera_recorder = Node(
-                            name="camera_recorder_node",
+                            name="lineDetector_node",
                             package="line_follower_ROSario",
-                            executable="camera_recorder",
+                            executable="lineDetector_ROSario",
                             output = 'screen'
                             )
     

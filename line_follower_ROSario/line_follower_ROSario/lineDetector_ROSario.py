@@ -41,14 +41,12 @@ class lineDetector(Node):
 
         self.color_id = 0
 
-        self.color_pub = self.create_publisher(Int32, 'color_id', 10)
-        self.color_msg = Int32()
+        self.line_error_pub = self.create_publisher(Int32, 'line_error', 10)
+        self.line_error_msg = Int32()
 
         # Parameter Callback
         self.add_on_set_parameters_callback(self.parameters_callback)
 
-        self.image_pub = self.create_publisher(Image, '/image_processing/image', 10)
-    
         self.subscription = self.create_subscription(
             Image,
             '/video_source/raw',
@@ -117,60 +115,91 @@ class lineDetector(Node):
         except Exception as e:
             self.get_logger().error(f'Error de conversión: {e}')
 
+    def calcular_error(self, centroids, frame_width):
+        center_x = frame_width // 2
+        
+        if len(centroids) <= 2:
+            # Solo una línea → curva
+            cx = centroids[0][0]
+            error = center_x - cx
+            curva = True
+
+        elif len(centroids) >= 3:
+            # Recta o transición: promedio de centroides visibles
+            avg_cx = int(np.mean([c[0] for c in centroids]))
+            error = center_x - avg_cx
+            curva = False
+
+        else:
+            # No hay líneas → sin control (puedes detener o mantener el último valor)
+            error = 0
+            curva = None  # No se puede decidir
+
+        return error, curva
+
+
     def main_loop(self):
         if self.img is None:
             self.get_logger().info('Esperando imagen...')
             return
 
         if self.params_ready:
+            centroids = []
+
             flip_img = cv.flip(self.img, 0)
             flip_img = cv.flip(flip_img, 1)
 
-            # Resize image if needed
+            # --- Redimensionar imagen ---
             height, width = flip_img.shape[:2]
             if (width, height) != (self.target_width, self.target_height):
                 resized_img = cv.resize(flip_img, (self.target_width, self.target_height))
             else:
                 resized_img = flip_img.copy()
             
-            # --- Step 1: Create trapezoidal mask ---
+            # --- Region de interés ---
 
             roi = resized_img[int(self.target_height * self.cut_por):, :]
-            roi_height, roi_width = roi.shape[:2]
+            #roi_height, roi_width = roi.shape[:2]
 
-            # --- Step 2: Preprocess image ---
+            # --- Pre-procesado de la imagen ---
             gray = cv.cvtColor(roi, cv.COLOR_BGR2GRAY)
             blurred = cv.GaussianBlur(gray, (self.blur_kernel, self.blur_kernel), 0)
             _, binary_inv = cv.threshold(blurred, 100, 255, cv.THRESH_BINARY_INV)
 
-            # Morphological operations
+            # --- Operaciones morfologicas ---
             kernel = np.ones((self.morfo_kernel, self.morfo_kernel), np.uint8)
             morph = cv.erode(binary_inv, kernel, iterations=3)
             morph = cv.dilate(morph, kernel, iterations=3)
 
-            # Canny edge detection
+            # --- Detección de bordes Canny ---
             canny_edges = cv.Canny(morph, 50, 200)
 
-            # --- Step 3: Find and process contours ---
+            # --- Busqueda de contornos ---
             contours, _ = cv.findContours(canny_edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
 
-            output = roi.copy()
+            output = roi.copy() # Imagen de salida
+
+            # --- Impresión de contornos y su contador ---
             cv.drawContours(output, contours, -1, (0,255,0), 2)
             cv.putText(output, f"No. contornos: {len(contours)}", (50, 25), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 1)
 
+            # --- Centroides ---
             for cnt in contours:
                 x, y, w, h = cv.boundingRect(cnt)
                 cx = x + w // 2
                 cy = y + h // 2
+
+                centroids.append((cx, cy))
                 cv.circle(output, (cx, cy), 7, (0, 0, 255), -1)
-
-            # Convert to RGB for matplotlib
-            #output_rgb = cv.cvtColor(output, cv.COLOR_BGR2RGB)
-
-            #######################
-            # Asegura que todas tengan el mismo tamaño para el collage
             
-
+            error, curva = self.calcular_error(centroids, roi.shape[1])
+            self.line_error_msg.data = int(error)
+            self.line_error_pub.publish(self.line_error_msg)
+            cv.putText(output, f"Error: {error}", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 1)
+            cv.putText(output, f"Curve: {curva}", (50, 75), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 1)
+            cv.putText(output, f"No. centroides: {len(centroids)}", (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 1)
+            
+            # --- COLLAGE de todo el proceso ---
             # Convertir grises a BGR para visualización conjunta
             gray_bgr = cv.cvtColor(gray, cv.COLOR_GRAY2BGR)
             blurred_bgr = cv.cvtColor(blurred, cv.COLOR_GRAY2BGR)
@@ -193,12 +222,7 @@ class lineDetector(Node):
             row2 = cv.hconcat([img5, img6, img7, img8])
             collage = cv.vconcat([row1, row2])
 
-            # Mostrar el collage
-            #cv2.imshow('Collage - Proceso completo', collage)
-
-            #######################
-            
-            #cv.imshow('Output', output_rgb)
+            # --- Creación de video de salida
             if not self.video_writer_initialized:
                 height, width, _ = self.img.shape
                 # Generar nombre dinámico: día_mes_año_hora_minuto_segundo
@@ -211,6 +235,7 @@ class lineDetector(Node):
 
                 self.video_writer_initialized = True
             
+            # --- Escritura del video de salida ---
             if self.out:
                 self.out.write(collage)
             

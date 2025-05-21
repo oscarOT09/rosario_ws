@@ -51,17 +51,22 @@ def generate_launch_description():
                             output = 'screen'
                             )
     
-  
+    camera_recorder = Node(
+                            name="videoRecorder_node",
+                            package="line_follower_ROSario",
+                            executable="camera_recorder",
+                            output = 'screen'
+                            )
     
-    '''delayed_camera = TimerAction(
+    delayed_camera = TimerAction(
                                 period=5.0,
                                 actions=[camera_agent]
                                )
     
     delayed_puzzlebot = TimerAction(
-                                period=10.0,
-                                actions=[puzzle_path, puzzle_localisation, puzzle_controller, colorIdentificator]
-                               )'''
+                                period=7.0,
+                                actions=[line_detector, puzzle_controller, camera_recorder]
+                               )
 
-    l_d = LaunchDescription([puzzle_controller, line_detector, puzzle_localisation, trafficLight_detector])
+    l_d = LaunchDescription([micro_ros_agent, delayed_camera, delayed_puzzlebot])
     return l_d

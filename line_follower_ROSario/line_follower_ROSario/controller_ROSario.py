@@ -10,6 +10,7 @@ import signal
 from rcl_interfaces.msg import SetParametersResult
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Int32
+from rosario_path.msg import RosarioPath
 
 # Definición de la clase
 class OpenLoopCtrl(Node):

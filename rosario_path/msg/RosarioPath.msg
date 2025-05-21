@@ -1,5 +1,2 @@
-geometry_msgs/Pose path
-float32 max_lin_vel
-float32 min_lin_vel
-float32 max_ang_vel
-float32 min_ang_vel
+int32 error
+bool curva

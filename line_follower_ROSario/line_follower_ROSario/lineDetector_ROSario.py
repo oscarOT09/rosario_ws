@@ -12,6 +12,7 @@ from cv_bridge import CvBridge
 from std_msgs.msg import Int32
 from datetime import datetime
 from rcl_interfaces.msg import SetParametersResult
+from rosario_path.msg import RosarioPath
 
 class lineDetector(Node):
     def __init__(self):
@@ -117,17 +118,26 @@ class lineDetector(Node):
 
     def calcular_error(self, centroids, frame_width):
         center_x = frame_width // 2
-        
+        closest_cx = None
+
         if len(centroids) <= 2:
             # Solo una línea → curva
             cx = centroids[0][0]
             error = center_x - cx
             curva = True
+            closest_cx = cx
 
         elif len(centroids) >= 3:
-            # Recta o transición: promedio de centroides visibles
-            avg_cx = int(np.mean([c[0] for c in centroids]))
-            error = center_x - avg_cx
+            min_dist = float('inf')
+
+            for c in centroids:
+                cx = c[0]
+                dist = abs(cx - center_x)
+                if dist < min_dist:
+                    min_dist = dist
+                    closest_cx = cx
+
+            error = center_x - closest_cx
             curva = False
 
         else:
@@ -135,7 +145,7 @@ class lineDetector(Node):
             error = 0
             curva = None  # No se puede decidir
 
-        return error, curva
+        return error, curva, closest_cx
 
 
     def main_loop(self):
@@ -192,13 +202,18 @@ class lineDetector(Node):
                 centroids.append((cx, cy))
                 cv.circle(output, (cx, cy), 7, (0, 0, 255), -1)
             
-            error, curva = self.calcular_error(centroids, roi.shape[1])
+            error, curva, closest_cx = self.calcular_error(centroids, roi.shape[1])
             self.line_error_msg.data = int(error)
             self.line_error_pub.publish(self.line_error_msg)
             cv.putText(output, f"Error: {error}", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 1)
             cv.putText(output, f"Curve: {curva}", (50, 75), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 1)
             cv.putText(output, f"No. centroides: {len(centroids)}", (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 1)
             
+            if closest_cx is not None:
+                roi_height = roi.shape[0]
+                cv.line(output, (closest_cx, 0), (closest_cx, roi_height), (255, 0, 255), 2)
+                cv.putText(output, "Centro seg.", (closest_cx - 30, 20), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)
+                
             # --- COLLAGE de todo el proceso ---
             # Convertir grises a BGR para visualización conjunta
             gray_bgr = cv.cvtColor(gray, cv.COLOR_GRAY2BGR)

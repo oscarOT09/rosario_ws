@@ -11,12 +11,21 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from std_msgs.msg import Int32
 from datetime import datetime
-
+from rcl_interfaces.msg import SetParametersResult
 
 class lineDetector(Node):
     def __init__(self):
         super().__init__('lineDetector_node')
 
+        self.declare_parameter('cut_por', 0.525)
+        self.declare_parameter('blur_kernel', 3)
+        self.declare_parameter('morfo_kernel', 3)
+        self.declare_parameter('params_ready', False)
+
+        self.cut_por = self.get_parameter('cut_por').value
+        self.blur_kernel = self.get_parameter('blur_kernel').value
+        self.morfo_kernel = self.get_parameter('morfo_kernel').value
+        self.params_ready = self.get_parameter('params_ready').value
         self.img = None
         self.bridge = CvBridge()
         
@@ -28,13 +37,18 @@ class lineDetector(Node):
 
         self.target_width, self.target_height = 640, 480
 
+        self.collage_size = (320, 240)
+
         self.color_id = 0
 
         self.color_pub = self.create_publisher(Int32, 'color_id', 10)
         self.color_msg = Int32()
 
-        self.image_pub = self.create_publisher(Image, '/image_processing/image', 10)
+        # Parameter Callback
+        self.add_on_set_parameters_callback(self.parameters_callback)
 
+        self.image_pub = self.create_publisher(Image, '/image_processing/image', 10)
+    
         self.subscription = self.create_subscription(
             Image,
             '/video_source/raw',
@@ -46,6 +60,43 @@ class lineDetector(Node):
         self.controller_timer = self.create_timer(1.0 / frecuencia_controlador, self.main_loop)
 
         self.get_logger().info('Line Detector initialized!')
+
+    def parameters_callback(self, params):
+        for param in params:
+            #system gain parameter check
+            if param.name == "cut_por":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("No puede ser negativo")
+                    return SetParametersResult(successful=False, reason="kp cannot be negative")
+                else:
+                    self.cut_por = param.value  # Update internal variable
+                    #self.get_logger().info(f"cut updated to {self.kp}")
+            elif param.name == "blur_kernel":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("No puede ser negativo")
+                    return SetParametersResult(successful=False, reason="ki cannot be negative")
+                else:
+                    self.blur_kernel = param.value  # Update internal variable
+                    #self.get_logger().info(f"ki updated to {self.ki}")
+            elif param.name == "morfo_kernel":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("No puede ser negativo")
+                    return SetParametersResult(successful=False, reason="kd cannot be negative")
+                else:
+                    self.morfo_kernel = param.value  # Update internal variable
+                    #self.get_logger().info(f"kd updated to {self.kd}")
+            elif param.name == "params_ready":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("No puede ser negativo")
+                    return SetParametersResult(successful=False, reason="kd cannot be negative")
+                else:
+                    self.params_ready = param.value  # Update internal variable
+                    #self.get_logger().info(f"kd updated to {self.kd}")
+        return SetParametersResult(successful=True)
 
     def camera_callback(self, msg):
         try:
@@ -71,120 +122,100 @@ class lineDetector(Node):
             self.get_logger().info('Esperando imagen...')
             return
 
-        flip_img = cv.flip(self.img, 0)
-        flip_img = cv.flip(flip_img, 1)
+        if self.params_ready:
+            flip_img = cv.flip(self.img, 0)
+            flip_img = cv.flip(flip_img, 1)
 
-        # Resize image if needed
-        height, width = flip_img.shape[:2]
-        if (width, height) != (self.target_width, self.target_height):
-            resized_img = cv.resize(flip_img, (self.target_width, self.target_height))
-            #print("Image resized to 640x480.")
-        else:
-            resized_img = flip_img.copy()
-            #print("Image already 640x480.")    
+            # Resize image if needed
+            height, width = flip_img.shape[:2]
+            if (width, height) != (self.target_width, self.target_height):
+                resized_img = cv.resize(flip_img, (self.target_width, self.target_height))
+            else:
+                resized_img = flip_img.copy()
+            
+            # --- Step 1: Create trapezoidal mask ---
 
-        # --- Step 1: Create trapezoidal mask ---
+            roi = resized_img[int(self.target_height * self.cut_por):, :]
+            roi_height, roi_width = roi.shape[:2]
 
-        #roi = resized_img[int(target_height*0.0):, :]
-        roi = resized_img[int(self.target_height * 0.4):, :]
+            # --- Step 2: Preprocess image ---
+            gray = cv.cvtColor(roi, cv.COLOR_BGR2GRAY)
+            blurred = cv.GaussianBlur(gray, (self.blur_kernel, self.blur_kernel), 0)
+            _, binary_inv = cv.threshold(blurred, 100, 255, cv.THRESH_BINARY_INV)
 
-        roi_height, roi_width = roi.shape[:2]
+            # Morphological operations
+            kernel = np.ones((self.morfo_kernel, self.morfo_kernel), np.uint8)
+            morph = cv.erode(binary_inv, kernel, iterations=3)
+            morph = cv.dilate(morph, kernel, iterations=3)
 
-        mask = np.zeros((roi_height, roi_width), dtype=np.uint8)
+            # Canny edge detection
+            canny_edges = cv.Canny(morph, 50, 200)
 
-        top_width = int(roi_width * 0.9)
-        trapezoid = np.array([[
-            ((roi_width - top_width) // 2, int(roi_height * 0.0)),  # top-left
-            ((roi_width + top_width) // 2, int(roi_height * 0.0)),  # top-right
-            (roi_width, roi_height),                                # bottom-right
-            (0, roi_height)                                            # bottom-left
-        ]], dtype=np.int32)
+            # --- Step 3: Find and process contours ---
+            contours, _ = cv.findContours(canny_edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
 
-        cv.fillPoly(mask, trapezoid, 255)
-        roi = cv.bitwise_and(roi, roi, mask=mask)
+            output = roi.copy()
+            cv.drawContours(output, contours, -1, (0,255,0), 2)
+            cv.putText(output, f"No. contornos: {len(contours)}", (50, 25), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 1)
 
-        # --- Step 2: Preprocess image ---
-        gray = cv.cvtColor(roi, cv.COLOR_BGR2GRAY)
-        blurred = cv.GaussianBlur(gray, (5, 5), 0)
-        _, binary_inv = cv.threshold(blurred, 100, 255, cv.THRESH_BINARY_INV)
+            for cnt in contours:
+                x, y, w, h = cv.boundingRect(cnt)
+                cx = x + w // 2
+                cy = y + h // 2
+                cv.circle(output, (cx, cy), 7, (0, 0, 255), -1)
 
-        # Morphological operations
-        kernel = np.ones((3, 3), np.uint8)
-        morph = cv.erode(binary_inv, kernel, iterations=3)
-        morph = cv.dilate(morph, kernel, iterations=3)
+            # Convert to RGB for matplotlib
+            #output_rgb = cv.cvtColor(output, cv.COLOR_BGR2RGB)
 
-        # Canny edge detection
-        canny_edges = cv.Canny(morph, 50, 150)
+            #######################
+            # Asegura que todas tengan el mismo tamaño para el collage
+            
 
-        side_crop_percent = 0.05
-        crop_x = int(roi_width * side_crop_percent)
+            # Convertir grises a BGR para visualización conjunta
+            gray_bgr = cv.cvtColor(gray, cv.COLOR_GRAY2BGR)
+            blurred_bgr = cv.cvtColor(blurred, cv.COLOR_GRAY2BGR)
+            binary_inv_bgr = cv.cvtColor(binary_inv, cv.COLOR_GRAY2BGR)
+            morph_bgr = cv.cvtColor(morph, cv.COLOR_GRAY2BGR)
+            canny_bgr = cv.cvtColor(canny_edges, cv.COLOR_GRAY2BGR)
 
-        # Create a mask that only keeps the center part
-        side_mask = np.zeros_like(canny_edges)
-        cv.rectangle(
-            side_mask,
-            (crop_x, 0),  # top-left corner
-            (roi_width - crop_x, roi_height),  # bottom-right corner
-            255,  # white region
-            thickness=-1
-        )
+            # Redimensionar todas las imágenes
+            img1 = cv.resize(resized_img, self.collage_size)
+            img2 = cv.resize(roi, self.collage_size)
+            img3 = cv.resize(gray_bgr, self.collage_size)
+            img4 = cv.resize(blurred_bgr, self.collage_size)
+            img5 = cv.resize(binary_inv_bgr, self.collage_size)
+            img6 = cv.resize(morph_bgr, self.collage_size)
+            img7 = cv.resize(canny_bgr, self.collage_size)
+            img8 = cv.resize(output, self.collage_size)
 
-        # Apply side mask
-        canny_edges = cv.bitwise_and(canny_edges, canny_edges, mask=side_mask)
+            # Concatenar en dos filas de cuatro imágenes
+            row1 = cv.hconcat([img1, img2, img3, img4])
+            row2 = cv.hconcat([img5, img6, img7, img8])
+            collage = cv.vconcat([row1, row2])
 
-        # Apply trapezoidal mask to Canny output
-        all_edges_roi = cv.bitwise_and(canny_edges, canny_edges, mask=mask)
+            # Mostrar el collage
+            #cv2.imshow('Collage - Proceso completo', collage)
 
-        # --- Step 3: Find and process contours ---
-        contours, _ = cv.findContours(all_edges_roi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+            #######################
+            
+            #cv.imshow('Output', output_rgb)
+            if not self.video_writer_initialized:
+                height, width, _ = self.img.shape
+                # Generar nombre dinámico: día_mes_año_hora_minuto_segundo
+                timestamp = datetime.now().strftime('%d_%m_%Y_%H_%M_%S')
+                filename = f'{timestamp}_lineoutput.mp4'
 
-        output = roi.copy()
-        epsilon_factor = 0.1
+                self.out = cv.VideoWriter(filename,
+                                        cv.VideoWriter_fourcc(*'mp4v'),
+                                        5, (4*self.collage_size[0], 2*self.collage_size[1]))
 
-        for cnt in contours:
-            # Approximate polygon
-            epsilon = epsilon_factor * cv.arcLength(cnt, True)
-            approx = cv.approxPolyDP(cnt, epsilon, True)
-
-            # Bounding rectangle and center
-            x, y, w, h = cv.boundingRect(approx)
-            cv.rectangle(output, (x, y), (x + w, y + h), (255, 0, 0), 2)  # Blue box
-
-            box_area = w * h
-
-            # Filter by bounding box area
-            if box_area < 1000 or box_area > 100000:
-                continue
-
-            cx = x + w // 2
-            cy = y + h // 2
-            cv.circle(output, (cx, cy), 4, (0, 0, 255), -1)               # Red center
-            cv.putText(output, f"({cx},{cy})", (cx + 10, cy), cv.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 0), 1)
-
-            # Draw the approximated polygon
-            cv.polylines(output, [approx], isClosed=True, color=(0, 255, 0), thickness=2)
-
-        # Convert to RGB for matplotlib
-        output_rgb = cv.cvtColor(output, cv.COLOR_BGR2RGB)
-
-        #cv.imshow('Output', output_rgb)
-        if not self.video_writer_initialized:
-            height, width, _ = self.img.shape
-            # Generar nombre dinámico: día_mes_año_hora_minuto_segundo
-            timestamp = datetime.now().strftime('%d_%m_%Y_%H_%M_%S')
-            filename = f'{timestamp}_lineoutput.mp4'
-
-            self.out = cv.VideoWriter(filename,
-                                    cv.VideoWriter_fourcc(*'mp4v'),
-                                    5, (output_rgb.shape[1], output_rgb.shape[0]))
-
-            self.video_writer_initialized = True
-        
-        if self.out:
-            self.out.write(output)
-        
-        if self.out_raw:
-            self.out_raw.write(flip_img)
+                self.video_writer_initialized = True
+            
+            if self.out:
+                self.out.write(collage)
+            
+            if self.out_raw:
+                self.out_raw.write(flip_img)
 
     def stop_handler(self, signum, frame):
         '''Manejo de interrupción por teclado (ctrl + c)'''

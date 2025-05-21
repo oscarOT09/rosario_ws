@@ -11,11 +11,27 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from std_msgs.msg import Int32
 from datetime import datetime
-
+from rcl_interfaces.msg import SetParametersResult
 
 class colorIdentificator(Node):
     def __init__(self):
         super().__init__('trafficLightDetector_node')
+
+        self.declare_parameter('lower_white_H', 0)
+        self.declare_parameter('lower_white_S', 40)
+        self.declare_parameter('lower_white_V', 190)
+        self.declare_parameter('upper_white_H', 92)
+        self.declare_parameter('upper_white_S', 255)
+        self.declare_parameter('upper_white_V', 255)
+        self.declare_parameter('params_ready', False)
+
+        self.lower_white_H = self.get_parameter('lower_white_H').value
+        self.lower_white_S = self.get_parameter('lower_white_S').value
+        self.lower_white_V = self.get_parameter('lower_white_V').value
+        self.upper_white_H = self.get_parameter('upper_white_H').value
+        self.upper_white_S = self.get_parameter('upper_white_S').value
+        self.upper_white_V = self.get_parameter('upper_white_V').value
+        self.params_ready = self.get_parameter('params_ready').value
 
         self.img = None
         self.bridge = CvBridge()
@@ -34,8 +50,10 @@ class colorIdentificator(Node):
         self.lower_green = np.array([60, 100, 100])
         self.upper_green = np.array([80, 255, 255])
 
-        self.lower_white = (0, 40, 190)
-        self.upper_white = (92, 255, 255)
+        
+
+        # Parameter Callback
+        self.add_on_set_parameters_callback(self.parameters_callback)
 
         self.color_id = 0
 
@@ -56,6 +74,67 @@ class colorIdentificator(Node):
 
         self.get_logger().info('Color Identificator initialized!')
 
+    def parameters_callback(self, params):
+        for param in params:
+            #system gain parameter check
+            if param.name == "lower_white_H":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("No puede ser negativo")
+                    return SetParametersResult(successful=False, reason="kp cannot be negative")
+                else:
+                    self.lower_white_H = param.value  # Update internal variable
+                    #self.get_logger().info(f"cut updated to {self.kp}")
+            elif param.name == "lower_white_S":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("No puede ser negativo")
+                    return SetParametersResult(successful=False, reason="ki cannot be negative")
+                else:
+                    self.lower_white_S = param.value  # Update internal variable
+                    #self.get_logger().info(f"ki updated to {self.ki}")
+            elif param.name == "lower_white_V":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("No puede ser negativo")
+                    return SetParametersResult(successful=False, reason="kd cannot be negative")
+                else:
+                    self.lower_white_V = param.value  # Update internal variable
+                    #self.get_logger().info(f"kd updated to {self.kd}")
+            elif param.name == "upper_white_H":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("No puede ser negativo")
+                    return SetParametersResult(successful=False, reason="kd cannot be negative")
+                else:
+                    self.upper_white_H = param.value  # Update internal variable
+                    #self.get_logger().info(f"kd updated to {self.kd}")
+            elif param.name == "upper_white_S":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("No puede ser negativo")
+                    return SetParametersResult(successful=False, reason="kd cannot be negative")
+                else:
+                    self.upper_white_S = param.value  # Update internal variable
+                    #self.get_logger().info(f"kd updated to {self.kd}")
+            elif param.name == "upper_white_V":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("No puede ser negativo")
+                    return SetParametersResult(successful=False, reason="kd cannot be negative")
+                else:
+                    self.upper_white_V = param.value  # Update internal variable
+                    #self.get_logger().info(f"kd updated to {self.kd}")
+            elif param.name == "params_ready":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("No puede ser negativo")
+                    return SetParametersResult(successful=False, reason="kd cannot be negative")
+                else:
+                    self.params_ready = param.value  # Update internal variable
+                    #self.get_logger().info(f"kd updated to {self.kd}")
+        return SetParametersResult(successful=True)
+    
     def camera_callback(self, msg):
         try:
             self.img = self.bridge.imgmsg_to_cv2(msg, "bgr8")
@@ -66,96 +145,100 @@ class colorIdentificator(Node):
     def main_loop(self):
         if self.img is None:
             self.get_logger().info('Esperando imagen...')
-            return
+            return 
         
-        self.color_id = 0
+        if self.params_ready:
+            self.color_id = 0
 
-        flip_img = cv.flip(self.img, 0)
-        flip_img = cv.flip(flip_img, 1)
+            self.lower_white = (self.lower_white_H, self.lower_white_S, self.lower_white_V)
+            self.upper_white = (self.upper_white_H, self.upper_white_S, self.upper_white_V)
 
-        alto = self.img.shape[0]
+            flip_img = cv.flip(self.img, 0)
+            flip_img = cv.flip(flip_img, 1)
 
-        corte = int(alto*0.45)
-        flip_img_cut = flip_img[corte:,:]
-        cut_img = flip_img_cut.copy()
-        img_rgb = cv.cvtColor(flip_img_cut, cv.COLOR_BGR2RGB)
-        img_hsv = cv.cvtColor(img_rgb, cv.COLOR_RGB2HSV)
+            alto = self.img.shape[0]
 
-        # Inicializa el video solo una vez (después de recibir el primer frame)
-        if not self.video_writer_initialized:
-            height, width, _ = flip_img_cut.shape
-            '''self.out = cv.VideoWriter('output.mp4',
+            corte = int(alto*0.45)
+            flip_img_cut = flip_img[corte:,:]
+            cut_img = flip_img_cut.copy()
+            img_rgb = cv.cvtColor(flip_img_cut, cv.COLOR_BGR2RGB)
+            img_hsv = cv.cvtColor(img_rgb, cv.COLOR_RGB2HSV)
+
+            # Inicializa el video solo una vez (después de recibir el primer frame)
+            if not self.video_writer_initialized:
+                height, width, _ = flip_img_cut.shape
+                '''self.out = cv.VideoWriter('output.mp4',
+                                            cv.VideoWriter_fourcc(*'mp4v'),
+                                            5, (width, height))'''
+                # Generar nombre dinámico: día_mes_año_hora_minuto_segundo
+                timestamp = datetime.now().strftime('%d_%m_%Y_%H_%M_%S')
+                filename = f'{timestamp}_trafficLights.mp4'
+
+                self.out = cv.VideoWriter(filename,
                                         cv.VideoWriter_fourcc(*'mp4v'),
-                                        5, (width, height))'''
-            # Generar nombre dinámico: día_mes_año_hora_minuto_segundo
-            timestamp = datetime.now().strftime('%d_%m_%Y_%H_%M_%S')
-            filename = f'{timestamp}.mp4'
+                                        5, (width, height))
 
-            self.out = cv.VideoWriter(filename,
-                                    cv.VideoWriter_fourcc(*'mp4v'),
-                                    5, (width, height))
+                self.video_writer_initialized = True
+                self.get_logger().info('VideoWriter inicializado con resolución: {}x{}'.format(width, height))
+                
+            # Máscara para encontrar luces
+            mask_white = cv.inRange(img_hsv, self.lower_white, self.upper_white)
+            kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
+            mask_trafic = cv.morphologyEx(mask_white, cv.MORPH_OPEN, kernel, iterations=3)
+            mask_blur = cv.GaussianBlur(mask_trafic, (5, 5), 2)
 
-            self.video_writer_initialized = True
-            self.get_logger().info('VideoWriter inicializado con resolución: {}x{}'.format(width, height))
-            
-        # Máscara para encontrar luces
-        mask_white = cv.inRange(img_hsv, self.lower_white, self.upper_white)
-        kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
-        mask_trafic = cv.morphologyEx(mask_white, cv.MORPH_OPEN, kernel, iterations=3)
-        mask_blur = cv.GaussianBlur(mask_trafic, (5, 5), 2)
+            circles = cv.HoughCircles(mask_blur, cv.HOUGH_GRADIENT, dp=1.4, minDist=25,
+                                    param1=45, param2=22, minRadius=10, maxRadius=150)
 
-        circles = cv.HoughCircles(mask_blur, cv.HOUGH_GRADIENT, dp=1.4, minDist=25,
-                                param1=45, param2=22, minRadius=10, maxRadius=150)
+            if circles is not None:
+                circles = np.uint16(np.around(circles))
+                for (x, y, r) in circles[0, :]:
+                    # Crear máscara para esta región circular
+                    circle_mask = np.zeros(mask_trafic.shape, dtype=np.uint8)
+                    cv.circle(circle_mask, (x, y), r + ((r//10)+1), 255, -1)
 
-        if circles is not None:
-            circles = np.uint16(np.around(circles))
-            for (x, y, r) in circles[0, :]:
-                # Crear máscara para esta región circular
-                circle_mask = np.zeros(mask_trafic.shape, dtype=np.uint8)
-                cv.circle(circle_mask, (x, y), r + ((r//10)+1), 255, -1)
+                    # Aplicar la máscara para cada color
+                    mask_red = cv.bitwise_or(
+                        cv.inRange(img_hsv, self.lower_red1, self.upper_red1),
+                        cv.inRange(img_hsv, self.lower_red2, self.upper_red2)
+                    )
+                    mask_red = cv.bitwise_and(mask_red, circle_mask)
 
-                # Aplicar la máscara para cada color
-                mask_red = cv.bitwise_or(
-                    cv.inRange(img_hsv, self.lower_red1, self.upper_red1),
-                    cv.inRange(img_hsv, self.lower_red2, self.upper_red2)
-                )
-                mask_red = cv.bitwise_and(mask_red, circle_mask)
+                    mask_yellow = cv.bitwise_and(cv.inRange(img_hsv, self.lower_yellow, self.upper_yellow), circle_mask)
+                    mask_green = cv.bitwise_and(cv.inRange(img_hsv, self.lower_green, self.upper_green), circle_mask)
 
-                mask_yellow = cv.bitwise_and(cv.inRange(img_hsv, self.lower_yellow, self.upper_yellow), circle_mask)
-                mask_green = cv.bitwise_and(cv.inRange(img_hsv, self.lower_green, self.upper_green), circle_mask)
+                    red_count = cv.countNonZero(mask_red)
+                    yellow_count = cv.countNonZero(mask_yellow)
+                    green_count = cv.countNonZero(mask_green)
 
-                red_count = cv.countNonZero(mask_red)
-                yellow_count = cv.countNonZero(mask_yellow)
-                green_count = cv.countNonZero(mask_green)
+                    color_bgr = (255, 255, 255)  # Blanco por defecto
 
-                color_bgr = (255, 255, 255)  # Blanco por defecto
+                    if max(red_count, yellow_count, green_count) > 50:
+                        if red_count == max(red_count, yellow_count, green_count):
+                            self.color_id = 1 #color_detectado = "Rojo"
+                            color_bgr = (0, 0, 255)  # BGR para rojo
+                        elif yellow_count == max(red_count, yellow_count, green_count):
+                            self.color_id = 2 #color_detectado = "Amarillo"
+                            color_bgr = (0, 255, 255)
+                        elif green_count == max(red_count, yellow_count, green_count):
+                            self.color_id = 3 #color_detectado = "Verde"
+                            color_bgr = (0, 255, 0)
+                        else:
+                            self.color_id = 0
 
-                if max(red_count, yellow_count, green_count) > 50:
-                    if red_count == max(red_count, yellow_count, green_count):
-                        self.color_id = 1 #color_detectado = "Rojo"
-                        color_bgr = (0, 0, 255)  # BGR para rojo
-                    elif yellow_count == max(red_count, yellow_count, green_count):
-                        self.color_id = 2 #color_detectado = "Amarillo"
-                        color_bgr = (0, 255, 255)
-                    elif green_count == max(red_count, yellow_count, green_count):
-                        self.color_id = 3 #color_detectado = "Verde"
-                        color_bgr = (0, 255, 0)
-                    else:
-                        self.color_id = 0
-
-                # Dibujar el círculo en la imagen original con el color detectado
-                cv.circle(flip_img_cut, (x, y), r + ((r//10)+1), color_bgr, 3)
+                    # Dibujar el círculo en la imagen original con el color detectado
+                    cv.circle(flip_img_cut, (x, y), r + ((r//10)+1), color_bgr, 3)
 
 
-        # Conversión de la imagen al formato para su publicación
-        resultado_rgb = cv.cvtColor(flip_img_cut, cv.COLOR_BGR2RGB)
+            # Conversión de la imagen al formato para su publicación
+            resultado_rgb = cv.cvtColor(flip_img_cut, cv.COLOR_BGR2RGB)
 
-        self.get_logger().info(f"Color detectado: {self.color_id}")
-        self.color_msg.data = self.color_id
-        self.color_pub.publish(self.color_msg)
-        self.out.write(flip_img_cut)
-        #self.image_pub.publish(processed_img_msg)
-        #processed_img_msg = self.bridge.cv2_to_imgmsg(resultado_rgb, encoding='rgb8')
+            self.get_logger().info(f"Color detectado: {self.color_id}")
+            self.color_msg.data = self.color_id
+            self.color_pub.publish(self.color_msg)
+            self.out.write(flip_img_cut)
+            #self.image_pub.publish(processed_img_msg)
+            #processed_img_msg = self.bridge.cv2_to_imgmsg(resultado_rgb, encoding='rgb8')
 
     def stop_handler(self, signum, frame):
         '''Manejo de interrupción por teclado (ctrl + c)'''

@@ -44,7 +44,7 @@ class cameraRecorder(Node):
                                             5, (width, height))'''
                 # Generar nombre dinámico: día_mes_año_hora_minuto_segundo
                 timestamp = datetime.now().strftime('%d_%m_%Y_%H_%M_%S')
-                filename = f'{timestamp}.mp4'
+                filename = f'{timestamp}_raw.mp4'
 
                 self.out = cv.VideoWriter(filename,
                                         cv.VideoWriter_fourcc(*'mp4v'),

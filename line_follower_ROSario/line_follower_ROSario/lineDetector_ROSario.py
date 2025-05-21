@@ -30,10 +30,10 @@ class lineDetector(Node):
         self.bridge = CvBridge()
         
         self.out = None  # Se inicializa luego
-        self.out_raw = None
+        #self.out_raw = None
         
         self.video_writer_initialized = False
-        self.video_raw_writer_initialized = False
+        #self.video_raw_writer_initialized = False
 
         self.target_width, self.target_height = 640, 480
 
@@ -102,7 +102,7 @@ class lineDetector(Node):
         try:
             self.img = self.bridge.imgmsg_to_cv2(msg, "bgr8")
 
-            if not self.video_raw_writer_initialized:
+            '''if not self.video_raw_writer_initialized:
                 height, width, _ = self.img.shape
                 # Generar nombre dinámico: día_mes_año_hora_minuto_segundo
                 timestamp = datetime.now().strftime('%d_%m_%Y_%H_%M_%S')
@@ -112,7 +112,7 @@ class lineDetector(Node):
                                         cv.VideoWriter_fourcc(*'mp4v'),
                                         5, (width, height))
 
-                self.video_raw_writer_initialized = True
+                self.video_raw_writer_initialized = True'''
 
         except Exception as e:
             self.get_logger().error(f'Error de conversión: {e}')
@@ -214,15 +214,15 @@ class lineDetector(Node):
             if self.out:
                 self.out.write(collage)
             
-            if self.out_raw:
-                self.out_raw.write(flip_img)
+            '''if self.out_raw:
+                self.out_raw.write(flip_img)'''
 
     def stop_handler(self, signum, frame):
         '''Manejo de interrupción por teclado (ctrl + c)'''
         self.get_logger().info("Deteniendo nodo por interrupción por teclado...")
         if self.out is not None:
             self.out.release()
-            self.out_raw.release()
+            #self.out_raw.release()
             cv.destroyAllWindows()
             self.get_logger().info('VideoWriter liberado y ventanas cerradas.')
         raise SystemExit

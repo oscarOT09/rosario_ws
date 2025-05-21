@@ -17,9 +17,23 @@ def generate_launch_description():
                                     )
     
     camera_recorder = Node(
+                            name="videoRecorder_node",
+                            package="line_follower_ROSario",
+                            executable="camera_recorder",
+                            output = 'screen'
+                            )
+
+    line_detector = Node(
                             name="lineDetector_node",
                             package="line_follower_ROSario",
                             executable="lineDetector_ROSario",
+                            output = 'screen'
+                            )
+    
+    trafficLight = Node(
+                            name="trafficLightDetector_node",
+                            package="line_follower_ROSario",
+                            executable="trafficLightDetector_ROSario",
                             output = 'screen'
                             )
     
@@ -30,7 +44,7 @@ def generate_launch_description():
     
     delayed_nodes = TimerAction(
                                 period=8.0,
-                                actions=[camera_recorder]
+                                actions=[camera_recorder, line_detector, trafficLight]
                                )
 
     l_d = LaunchDescription([camera_agent, delayed_nodes])

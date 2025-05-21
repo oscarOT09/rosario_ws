@@ -18,38 +18,38 @@ class OpenLoopCtrl(Node):
         super().__init__('close_loop_ctrl')
         
         # Muestreo
-        frecuencia_controlador = 5.0
+        frecuencia_controlador = 15.0
 
         # Parámetros del robot
-        self.max_lin_vel = 0.0925
+        self.max_lin_vel = 0.37
         self.min_lin_vel = 0.025
-        self.max_ang_vel = 1.5
+        self.max_ang_vel = 3.5
         self.min_ang_vel = 0.29
 
         # Delta tiempo controladores
         self.dt_pid = 1.0/frecuencia_controlador
 
         # PID angular
-        self.declare_parameter('kp_ang', 0.5)
-        self.declare_parameter('ki_ang', 0.0)
-        self.declare_parameter('kd_ang', 0.0)
+        self.declare_parameter('kp_ang_rect', 0.00001)
+        self.declare_parameter('ki_ang_rect', 0.0)
+        self.declare_parameter('kd_ang_rect', 0.0005)
 
-        self.kp_ang = self.get_parameter('kp_ang').value # 1.7
-        self.ki_ang = self.get_parameter('ki_ang').value # 1.2
-        self.kd_ang = self.get_parameter('kd_ang').value # 0.2
-        self.integral_ang = 0.0
-        self.prev_error_ang = 0.0
+        self.kp_ang_rect = self.get_parameter('kp_ang_rect').value # 1.7
+        self.ki_ang_rect = self.get_parameter('ki_ang_rect').value # 1.2
+        self.kd_ang_rect = self.get_parameter('kd_ang_rect').value # 0.2
+        self.integral_ang_rect = 0.0
+        self.prev_error_ang_rect = 0.0
 
         # PID lineal
-        self.declare_parameter('kp_lin', 1.2)
-        self.declare_parameter('ki_lin', 0.5)
-        self.declare_parameter('kd_lin', 0.5)
+        self.declare_parameter('kp_ang_curv', 0.0)
+        self.declare_parameter('ki_ang_curv', 0.0)
+        self.declare_parameter('kd_ang_curv', 0.0)
 
-        self.kp_lin = self.get_parameter('kp_lin').value # 1.2
-        self.ki_lin = self.get_parameter('ki_lin').value # 0.5
-        self.kd_lin = self.get_parameter('kd_lin').value # 0.5
-        self.integral_lin = 0.0
-        self.prev_error_lin = 0.0
+        self.kp_ang_curv = self.get_parameter('kp_ang_curv').value # 1.2
+        self.ki_ang_curv = self.get_parameter('ki_ang_curv').value # 0.5
+        self.kd_ang_curv = self.get_parameter('kd_ang_curv').value # 0.5
+        self.integral_ang_curv = 0.0
+        self.prev_error_ang_curv = 0.0
 
         # Bandera para actualización de los parámetros de los controladores
         self.declare_parameter('controllers_ready', False)
@@ -58,7 +58,8 @@ class OpenLoopCtrl(Node):
         # Mensaje de velocidades para el Puzzlebot
         self.twist = Twist()
         # Velocidad lineal
-        self.linear_speed = 0.0925 # m/s
+        self.declare_parameter('linear_speed', 0.2)
+        self.linear_speed = self.get_parameter('linear_speed').value # m/s
         # Velocidad angular
         self.angular_speed = 0.0  # rad/s
 
@@ -68,12 +69,13 @@ class OpenLoopCtrl(Node):
         self.color_state = 0
 
         self.error_linea = 0
+        self.curva_linea = False
         
         # Publicador para el tópico /cmd_vel (comunicación con el Puzzlebot)
         self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
 
         # Suscriptor para el tópico /pose (comunicación con el nodo Path Generator)
-        self.lineDetect_sub = self.create_subscription(Int32, 'line_error', self.lineDetector_callback, 10)
+        self.lineDetect_sub = self.create_subscription(RosarioPath, 'line_error', self.lineDetector_callback, 10)
         # Suscriptor para el tópico /color_id (comunicación con el nodo Color Identification)
         self.colorID_sub = self.create_subscription(Int32, 'color_id', self.colors_callback, 10)
 
@@ -85,8 +87,9 @@ class OpenLoopCtrl(Node):
         self.get_logger().info('Line Follower Navigation Controller initialized!')
         
     def lineDetector_callback(self, msg):
-        self.error_linea = msg.data
-        self.get_logger().info(f'Error recibido: {self.error_linea}')
+        self.error_linea = msg.error
+        self.curva_linea = msg.curva
+        self.get_logger().info(f'Error recibido: {self.error_linea} | Curva: {self.curva_linea}')
     
     def colors_callback(self, msg):
         self.new_color = msg.data
@@ -105,104 +108,110 @@ class OpenLoopCtrl(Node):
                 #check if it is negative
                 self.controllers_ready = param.value  # Update internal variable
                 self.get_logger().info(f"controllers_ready updated to {self.controllers_ready}")
-            elif param.name == "kp_ang":
+            elif param.name == "kp_ang_rect":
                 #check if it is negative
                 if (param.value < 0.0):
                     self.get_logger().warn("Invalid kp! It just cannot be negative.")
                     return SetParametersResult(successful=False, reason="kp cannot be negative")
                 else:
-                    self.kp_ang = param.value  # Update internal variable
-                    self.get_logger().info(f"kp_ang updated to {self.kp_ang}")
-            elif param.name == "ki_ang":
+                    self.kp_ang_rect = param.value  # Update internal variable
+                    self.get_logger().info(f"kp_ang_rect updated to {self.kp_ang_rect}")
+            elif param.name == "ki_ang_rect":
                 #check if it is negative
                 if (param.value < 0.0):
                     self.get_logger().warn("Invalid ki! It just cannot be negative.")
                     return SetParametersResult(successful=False, reason="ki cannot be negative")
                 else:
-                    self.ki_ang = param.value  # Update internal variable
-                    self.get_logger().info(f"ki_ang updated to {self.ki_ang}")
-            elif param.name == "kd_ang":
+                    self.ki_ang_rect = param.value  # Update internal variable
+                    self.get_logger().info(f"ki_ang_rect updated to {self.ki_ang_rect}")
+            elif param.name == "kd_ang_rect":
                 #check if it is negative
                 if (param.value < 0.0):
                     self.get_logger().warn("Invalid kd! It just cannot be negative.")
                     return SetParametersResult(successful=False, reason="kd cannot be negative")
                 else:
-                    self.kd_ang = param.value  # Update internal variable
-                    self.get_logger().info(f"kd_ang updated to {self.kd_ang}")
+                    self.kd_ang_rect = param.value  # Update internal variable
+                    self.get_logger().info(f"kd_ang_rect updated to {self.kd_ang_rect}")
             
-            elif param.name == "kp_lin":
+            elif param.name == "kp_ang_curv":
                 #check if it is negative
                 if (param.value < 0.0):
                     self.get_logger().warn("Invalid kp! It just cannot be negative.")
                     return SetParametersResult(successful=False, reason="kp cannot be negative")
                 else:
-                    self.kp_lin = param.value  # Update internal variable
-                    self.get_logger().info(f"kp_lin updated to {self.kp_lin}")
-            elif param.name == "ki_lin":
+                    self.kp_ang_curv = param.value  # Update internal variable
+                    self.get_logger().info(f"kp_ang_curv updated to {self.kp_ang_curv}")
+            elif param.name == "ki_ang_curv":
                 #check if it is negative
                 if (param.value < 0.0):
                     self.get_logger().warn("Invalid ki! It just cannot be negative.")
                     return SetParametersResult(successful=False, reason="ki cannot be negative")
                 else:
-                    self.ki_lin = param.value  # Update internal variable
-                    self.get_logger().info(f"ki_lin updated to {self.ki_lin}")
-            elif param.name == "kd_lin":
+                    self.ki_ang_curv = param.value  # Update internal variable
+                    self.get_logger().info(f"ki_ang_curv updated to {self.ki_ang_curv}")
+            elif param.name == "kd_ang_curv":
                 #check if it is negative
                 if (param.value < 0.0):
                     self.get_logger().warn("Invalid kd! It just cannot be negative.")
                     return SetParametersResult(successful=False, reason="kd cannot be negative")
                 else:
-                    self.kd_lin = param.value  # Update internal variable
-                    self.get_logger().info(f"kd_lin updated to {self.kd_lin}")
+                    self.kd_ang_curv = param.value  # Update internal variable
+                    self.get_logger().info(f"kd_ang_curv updated to {self.kd_ang_curv}")
+            elif param.name == "linear_speed":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("Invalid kd! It just cannot be negative.")
+                    return SetParametersResult(successful=False, reason="kd cannot be negative")
+                else:
+                    self.linear_speed = param.value  # Update internal variable
+                    self.get_logger().info(f"linear_speed updated to {self.linear_speed}")
+
         return SetParametersResult(successful=True)
     
     def control_loop(self):
-        if self.controllers_ready and abs(self.error_linea) > 0:            
-            if self.color_state == 0 or self.color_state == 3:
-                '''self.linear_speed = 0.0
-                    self.angular_speed = 0.0
-                    self.integral_lin = 0.0
-                    self.prev_error_lin = 0.0
-                    self.mov_state = 2'''
-                self.angular_speed = self.saturate_with_deadband(self.pid_controller_angular(self.error_linea), self.min_ang_vel, self.max_ang_vel)
+        if self.controllers_ready:
+            if abs(self.error_linea) > 0:            
+                if self.color_state == 0 or self.color_state == 3:
+                    if not self.curva_linea:
+                        self.angular_speed = self.saturate_with_deadband(self.pid_controller_angular(self.error_linea), self.min_ang_vel, self.max_ang_vel)                
+                    else:
+                        self.angular_speed = self.saturate_with_deadband(self.pid_controller_angular_curv(self.error_linea), self.min_ang_vel, self.max_ang_vel)
+                    #self.get_logger().info("Siguiendo linea")
 
-                '''elif self.mov_state == 2:
+                elif self.color_state == 2:
+                    self.linear_speed = max(0.0, self.linear_speed - 0.0001)
+                    self.angular_speed = self.saturate_with_deadband(self.pid_controller_angular(self.error_linea), self.min_ang_vel, self.max_ang_vel)
+                    self.get_logger().info("Desacelerando por amarillo")
+
+                elif self.color_state == 1:
                     self.linear_speed = 0.0
                     self.angular_speed = 0.0
-                    self.robot_busy = False'''
-                
-                self.get_logger().info("Siguiendo linea")
+                    self.get_logger().info('Detenido por rojo')
 
-            elif self.color_state == 2:
-                self.linear_speed = max(0.0, self.linear_speed - 0.0001)
-                self.angular_speed = self.saturate_with_deadband(self.pid_controller_angular(self.error_linea), self.min_ang_vel, self.max_ang_vel)
-                self.get_logger().info("Desacelerando por amarillo")
-
-            elif self.color_state == 1:
-                self.linear_speed = 0.0
-                self.angular_speed = 0.0
-                self.get_logger().info('Detenido por rojo')
-
-            self.twist.linear.x = self.linear_speed
-            self.twist.angular.z = self.angular_speed
-            self.cmd_vel_pub.publish(self.twist)
+                self.twist.linear.x = self.linear_speed
+                self.twist.angular.z = self.angular_speed
+                self.cmd_vel_pub.publish(self.twist)
+            else:
+                self.twist.linear.x = self.linear_speed
+                self.twist.angular.z = 0.0
+                self.cmd_vel_pub.publish(self.twist)
         else:
             self.twist.linear.x = 0.0
             self.twist.angular.z = 0.0
             self.cmd_vel_pub.publish(self.twist)
     
     def pid_controller_angular(self, error):
-        self.integral_ang += error * self.dt_pid
-        derivative = (error - self.prev_error_ang) / self.dt_pid
-        output = self.kp_ang * error + self.ki_ang * self.integral_ang + self.kd_ang * derivative
-        self.prev_error_ang = error
+        self.integral_ang_rect += error * self.dt_pid
+        derivative = (error - self.prev_error_ang_rect) / self.dt_pid
+        output = self.kp_ang_rect * error + self.ki_ang_rect * self.integral_ang_rect + self.kd_ang_rect * derivative
+        self.prev_error_ang_rect = error
         return output
 
-    def pid_controller_lineal(self, error):
-        self.integral_lin += error * self.dt_pid
-        derivative = (error - self.prev_error_lin) / self.dt_pid
-        output = self.kp_lin * error + self.ki_lin * self.integral_lin + self.kd_lin * derivative
-        self.prev_error_lin = error
+    def pid_controller_angular_curv(self, error):
+        self.integral_ang_curv += error * self.dt_pid
+        derivative = (error - self.prev_error_ang_curv) / self.dt_pid
+        output = self.kp_ang_curv * error + self.ki_ang_curv * self.integral_ang_curv + self.kd_ang_curv * derivative
+        self.prev_error_ang_curv = error
         return output
 
     def saturate_with_deadband(self, output, min_val, max_val):

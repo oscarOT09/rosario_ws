@@ -18,10 +18,10 @@ class lineDetector(Node):
     def __init__(self):
         super().__init__('lineDetector_node')
 
-        self.declare_parameter('cut_por', 0.525)
+        self.declare_parameter('cut_por', 0.6)
         self.declare_parameter('blur_kernel', 3)
-        self.declare_parameter('morfo_kernel', 3)
-        self.declare_parameter('params_ready', False)
+        self.declare_parameter('morfo_kernel', 5)
+        self.declare_parameter('params_ready', True)
 
         self.cut_por = self.get_parameter('cut_por').value
         self.blur_kernel = self.get_parameter('blur_kernel').value
@@ -42,8 +42,8 @@ class lineDetector(Node):
 
         self.color_id = 0
 
-        self.line_error_pub = self.create_publisher(Int32, 'line_error', 10)
-        self.line_error_msg = Int32()
+        self.line_error_pub = self.create_publisher(RosarioPath, 'line_error', 10)
+        self.line_error_msg = RosarioPath()
 
         # Parameter Callback
         self.add_on_set_parameters_callback(self.parameters_callback)
@@ -55,8 +55,8 @@ class lineDetector(Node):
             10
         )
 
-        frecuencia_controlador = 5.0
-        self.controller_timer = self.create_timer(1.0 / frecuencia_controlador, self.main_loop)
+        frecuencia_loop = 10.0
+        self.controller_timer = self.create_timer(1.0 / frecuencia_loop, self.main_loop)
 
         self.get_logger().info('Line Detector initialized!')
 
@@ -116,18 +116,28 @@ class lineDetector(Node):
         except Exception as e:
             self.get_logger().error(f'Error de conversión: {e}')
 
-    def calcular_error(self, centroids, frame_width):
+    def calcular_error(self, centroids, frame_width, all_points):
         center_x = frame_width // 2
         closest_cx = None
 
-        if len(centroids) <= 2:
-            # Solo una línea → curva
-            cx = centroids[0][0]
-            error = center_x - cx
+        if len(centroids) <= 2 and len(all_points) >= 2:
+            # Calcular la pendiente de la línea con regresión lineal
+            all_points = np.array(all_points)
+            x = all_points[:, 0]
+            y = all_points[:, 1]
+
+            # Ajuste de recta: y = m*x + b
+            m, b = np.polyfit(x, y, 1)
+            angle_rad = np.arctan(m)
+            angle_deg = np.degrees(angle_rad)
+
+            # Usamos el ángulo como error (puedes escalarlo si es necesario)
+            error = -angle_deg  # signo negativo para corregir dirección
             curva = True
-            closest_cx = cx
+            closest_cx = None  # no se usa en este caso
 
         elif len(centroids) >= 3:
+            # Buscar el centroide más cercano al centro de la imagen
             min_dist = float('inf')
 
             for c in centroids:
@@ -141,9 +151,9 @@ class lineDetector(Node):
             curva = False
 
         else:
-            # No hay líneas → sin control (puedes detener o mantener el último valor)
             error = 0
-            curva = None  # No se puede decidir
+            curva = False
+            closest_cx = None
 
         return error, curva, closest_cx
 
@@ -155,6 +165,7 @@ class lineDetector(Node):
 
         if self.params_ready:
             centroids = []
+            all_points = []
 
             flip_img = cv.flip(self.img, 0)
             flip_img = cv.flip(flip_img, 1)
@@ -201,10 +212,16 @@ class lineDetector(Node):
 
                 centroids.append((cx, cy))
                 cv.circle(output, (cx, cy), 7, (0, 0, 255), -1)
+
+                for point in cnt:
+                    all_points.append(point[0])
             
-            error, curva, closest_cx = self.calcular_error(centroids, roi.shape[1])
-            self.line_error_msg.data = int(error)
+            error, curva, closest_cx = self.calcular_error(centroids, roi.shape[1], all_points)
+
+            self.line_error_msg.error = int(error)
+            self.line_error_msg.curva = curva
             self.line_error_pub.publish(self.line_error_msg)
+            
             cv.putText(output, f"Error: {error}", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 1)
             cv.putText(output, f"Curve: {curva}", (50, 75), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 1)
             cv.putText(output, f"No. centroides: {len(centroids)}", (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 1)

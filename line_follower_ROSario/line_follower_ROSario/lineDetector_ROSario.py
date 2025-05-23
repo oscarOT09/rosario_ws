@@ -121,23 +121,40 @@ class lineDetector(Node):
         closest_cx = None
 
         if len(centroids) <= 2 and len(all_points) >= 2:
-            # Calcular la pendiente de la línea con regresión lineal
+            # Calculo de intersección con la base ROI
             all_points = np.array(all_points)
-            x = all_points[:, 0]
-            y = all_points[:, 1]
+            #x = all_points[:, 0]
+            #y = all_points[:, 1]
+            x = [c[0] for c in centroids]
+            y = [c[1] for c in centroids]
+            try: 
+                m, b = np.polyfit(x, y, 1)
+                if abs(m) < 1e-5:
+                    #Pendientes muy pequeña (Línea horizontal o ruido)
+                    error = 0
+                    curva = False
+                    closest_cx = None
+                else:
+                    y_target = max(y) #fondo del ROI
+                    x_on = int((y_target - b) / m)
 
-            # Ajuste de recta: y = m*x + b
-            m, b = np.polyfit(x, y, 1)
-            angle_rad = np.arctan(m)
-            angle_deg = np.degrees(angle_rad)
+                    if np.isfinite(x_on):
+                        error = int(frame_width // 2 - x_on)
+                        curva = True
+                        closest_cx = None
+                    else:
+                        error = 0
+                        curva = False
+                        closest_cx = None
 
-            # Usamos el ángulo como error (puedes escalarlo si es necesario)
-            error = -angle_deg  # signo negativo para corregir dirección
-            curva = True
-            closest_cx = None  # no se usa en este caso
+            except:
+                error = 0
+                curva = False
+                closest_cx = None
 
         elif len(centroids) >= 3:
-            # Buscar el centroide más cercano al centro de la imagen
+
+            # Error de desviación
             min_dist = float('inf')
 
             for c in centroids:

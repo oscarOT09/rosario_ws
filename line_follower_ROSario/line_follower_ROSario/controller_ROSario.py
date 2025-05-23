@@ -18,12 +18,12 @@ class OpenLoopCtrl(Node):
         super().__init__('close_loop_ctrl')
         
         # Muestreo
-        frecuencia_controlador = 15.0
+        frecuencia_controlador = 10.0
 
         # Parámetros del robot
         self.max_lin_vel = 0.37
         self.min_lin_vel = 0.025
-        self.max_ang_vel = 3.5
+        self.max_ang_vel = 3.0
         self.min_ang_vel = 0.29
 
         # Delta tiempo controladores
@@ -58,7 +58,7 @@ class OpenLoopCtrl(Node):
         # Mensaje de velocidades para el Puzzlebot
         self.twist = Twist()
         # Velocidad lineal
-        self.declare_parameter('linear_speed', 0.2)
+        self.declare_parameter('linear_speed', 0.15)
         self.linear_speed = self.get_parameter('linear_speed').value # m/s
         # Velocidad angular
         self.angular_speed = 0.0  # rad/s
@@ -70,7 +70,7 @@ class OpenLoopCtrl(Node):
 
         self.error_linea = 0
         self.curva_linea = False
-        
+        self.cont_cam = 0
         # Publicador para el tópico /cmd_vel (comunicación con el Puzzlebot)
         self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
 
@@ -87,8 +87,14 @@ class OpenLoopCtrl(Node):
         self.get_logger().info('Line Follower Navigation Controller initialized!')
         
     def lineDetector_callback(self, msg):
+        if msg.curva and self.cont_cam < 10:
+            self.cont_cam += 1
+            self.curva_linea = True
+        else:
+            self.contr_cam = 0
+            self.curva_linea = msg.curva
         self.error_linea = msg.error
-        self.curva_linea = msg.curva
+        
         self.get_logger().info(f'Error recibido: {self.error_linea} | Curva: {self.curva_linea}')
     
     def colors_callback(self, msg):

@@ -45,6 +45,12 @@ class lineDetector(Node):
         self.line_error_pub = self.create_publisher(RosarioPath, 'line_error', 10)
         self.line_error_msg = RosarioPath()
 
+        #Cuando esta en curva --
+        self.last_error = 0
+        self.last_curva = False
+        self.frames_perdidos = 0
+        self.MAX_FRAMES_PERDIDOS = 5 #---
+
         # Parameter Callback
         self.add_on_set_parameters_callback(self.parameters_callback)
 
@@ -116,47 +122,60 @@ class lineDetector(Node):
         except Exception as e:
             self.get_logger().error(f'Error de conversión: {e}')
 
-    def calcular_error(self, centroids, frame_width, all_points):
+    def calcular_error(self, centroids, frame_width, all_points, debug_img=None):
         center_x = frame_width // 2
         closest_cx = None
+        MAX_ERROR = 200
 
-        if len(centroids) <= 2 and len(all_points) >= 2:
-            # Calculo de intersección con la base ROI
+        if len(centroids) <= 2 and len(all_points) >= 6:
             all_points = np.array(all_points)
-            #x = all_points[:, 0]
-            #y = all_points[:, 1]
-            x = [c[0] for c in centroids]
-            y = [c[1] for c in centroids]
-            try: 
-                m, b = np.polyfit(x, y, 1)
-                if abs(m) < 1e-5:
-                    #Pendientes muy pequeña (Línea horizontal o ruido)
-                    error = 0
-                    curva = False
-                    closest_cx = None
-                else:
-                    y_target = max(y) #fondo del ROI
-                    x_on = int((y_target - b) / m)
+            x = all_points[:, 0]
+            y = all_points[:, 1]
 
-                    if np.isfinite(x_on):
-                        error = int(frame_width // 2 - x_on)
+            # Invertir x/y para que el polinomio sea x = f(y)
+            if len(np.unique(y)) < 4:
+                self.get_logger().warn("Datos insuficientes para ajuste cúbico.")
+                error = 0
+                curva = False
+                closest_cx = None
+            else:
+                try:
+                    coefficients = np.polyfit(y, x, 3)  # x = f(y)
+                    p = np.poly1d(coefficients)
+
+                    y_target = max(y)
+                    x_on_bottom = int(p(y_target))
+
+                    if np.isfinite(x_on_bottom):
+                        error = center_x - x_on_bottom
+                        error = max(min(error, MAX_ERROR), -MAX_ERROR)
                         curva = True
                         closest_cx = None
+
+                        # Dibujar la curva en la imagen de salida (si se proporciona)
+                        if debug_img is not None:
+                            y_range = np.linspace(min(y), y_target, 50)
+                            for i in range(len(y_range)-1):
+                                pt1 = (int(p(y_range[i])), int(y_range[i]))
+                                pt2 = (int(p(y_range[i+1])), int(y_range[i+1]))
+                                if np.isfinite(pt1[0]) and np.isfinite(pt2[0]):
+                                    cv.line(debug_img, pt1, pt2, (255, 0, 255), 2)
+                            cv.circle(debug_img, (x_on_bottom, int(y_target)), 5, (0, 0, 255), -1)
                     else:
+                        self.get_logger().warn("Valor cúbico no finito.")
                         error = 0
                         curva = False
                         closest_cx = None
 
-            except:
-                error = 0
-                curva = False
-                closest_cx = None
+                except Exception as e:
+                    self.get_logger().error(f"[Cúbico falló]: {e}")
+                    error = 0
+                    curva = False
+                    closest_cx = None
 
         elif len(centroids) >= 3:
-
-            # Error de desviación
+            # Error recto: centroide más cercano al centro de imagen
             min_dist = float('inf')
-
             for c in centroids:
                 cx = c[0]
                 dist = abs(cx - center_x)
@@ -175,7 +194,10 @@ class lineDetector(Node):
         return error, curva, closest_cx
 
 
+
+
     def main_loop(self):
+
         if self.img is None:
             self.get_logger().info('Esperando imagen...')
             return
@@ -233,15 +255,43 @@ class lineDetector(Node):
                 for point in cnt:
                     all_points.append(point[0])
             
-            error, curva, closest_cx = self.calcular_error(centroids, roi.shape[1], all_points)
+            error_detectado = False
+
+            if len(centroids) > 0 and len(all_points) > 2:
+                output = roi.copy()
+                error, curva, closest_cx = self.calcular_error(centroids, roi.shape[1], all_points, debug_img=output)
+
+
+                self.last_error = error
+                self.last_curva = curva
+                self.frames_perdidos = 0
+                error_detectado = True
+            else:
+                self.frames_perdidos += 1
+                if self.frames_perdidos <= self.MAX_FRAMES_PERDIDOS:
+                    error = self.last_error
+                    curva = self.last_curva
+                    closest_cx = None
+                    self.get_logger().warn(f"[PERDIDO] Usando último error: {error}")
+                else:
+                    error = 0
+                    curva = False
+                    closest_cx = None
+
 
             self.line_error_msg.error = int(error)
-            self.line_error_msg.curva = curva
+            self.line_error_msg.curva = True 
             self.line_error_pub.publish(self.line_error_msg)
             
             cv.putText(output, f"Error: {error}", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 1)
             cv.putText(output, f"Curve: {curva}", (50, 75), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 1)
             cv.putText(output, f"No. centroides: {len(centroids)}", (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 1)
+
+            if not error_detectado and self.frames_perdidos <= self.MAX_FRAMES_PERDIDOS:
+                self.get_logger().info(f"Modo persistente activo: error={error}")
+            elif self.frames_perdidos > self.MAX_FRAMES_PERDIDOS:
+                self.get_logger().info("Línea perdida completamente. Reseteando.")
+
             
             if closest_cx is not None:
                 roi_height = roi.shape[0]

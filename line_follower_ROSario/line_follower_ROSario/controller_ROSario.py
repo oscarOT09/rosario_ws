@@ -41,9 +41,9 @@ class OpenLoopCtrl(Node):
         self.prev_error_ang_rect = 0.0
 
         # PID lineal
-        self.declare_parameter('kp_ang_curv', 0.0)
+        self.declare_parameter('kp_ang_curv', 0.003)
         self.declare_parameter('ki_ang_curv', 0.0)
-        self.declare_parameter('kd_ang_curv', 0.0)
+        self.declare_parameter('kd_ang_curv', 0.001)
 
         self.kp_ang_curv = self.get_parameter('kp_ang_curv').value # 1.2
         self.ki_ang_curv = self.get_parameter('ki_ang_curv').value # 0.5
@@ -58,10 +58,10 @@ class OpenLoopCtrl(Node):
         # Mensaje de velocidades para el Puzzlebot
         self.twist = Twist()
         # Velocidad lineal
-        self.declare_parameter('linear_speed', 0.15)
+        self.declare_parameter('linear_speed', 0.08)
         self.linear_speed = self.get_parameter('linear_speed').value # m/s
         # Velocidad angular
-        self.angular_speed = 0.0  # rad/s
+        self.angular_speed = 0.05  # rad/s
 
         # Estado de identificación de color
         self.prev_color = 0

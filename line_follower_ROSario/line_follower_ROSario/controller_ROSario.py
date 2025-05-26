@@ -18,21 +18,24 @@ class OpenLoopCtrl(Node):
         super().__init__('close_loop_ctrl')
         
         # Muestreo
-        frecuencia_controlador = 10.0
+        frecuencia_controlador = 20.0
+
+        self.declare_parameter('max_ang_vel', 2.5)
+        self.declare_parameter('min_ang_vel', 0.29)
 
         # Parámetros del robot
         self.max_lin_vel = 0.37
         self.min_lin_vel = 0.025
-        self.max_ang_vel = 3.0
-        self.min_ang_vel = 0.29
+        self.max_ang_vel = self.get_parameter('max_ang_vel').value
+        self.min_ang_vel = self.get_parameter('min_ang_vel').value
 
         # Delta tiempo controladores
         self.dt_pid = 1.0/frecuencia_controlador
 
         # PID angular
-        self.declare_parameter('kp_ang_rect', 0.00001)
+        self.declare_parameter('kp_ang_rect', 0.0)
         self.declare_parameter('ki_ang_rect', 0.0)
-        self.declare_parameter('kd_ang_rect', 0.0005)
+        self.declare_parameter('kd_ang_rect', 0.0)
 
         self.kp_ang_rect = self.get_parameter('kp_ang_rect').value # 1.7
         self.ki_ang_rect = self.get_parameter('ki_ang_rect').value # 1.2
@@ -41,7 +44,7 @@ class OpenLoopCtrl(Node):
         self.prev_error_ang_rect = 0.0
 
         # PID lineal
-        self.declare_parameter('kp_ang_curv', 0.003)
+        self.declare_parameter('kp_ang_curv', 0.002)
         self.declare_parameter('ki_ang_curv', 0.0)
         self.declare_parameter('kd_ang_curv', 0.001)
 
@@ -58,7 +61,7 @@ class OpenLoopCtrl(Node):
         # Mensaje de velocidades para el Puzzlebot
         self.twist = Twist()
         # Velocidad lineal
-        self.declare_parameter('linear_speed', 0.08)
+        self.declare_parameter('linear_speed', 0.1)
         self.linear_speed = self.get_parameter('linear_speed').value # m/s
         # Velocidad angular
         self.angular_speed = 0.05  # rad/s
@@ -87,13 +90,16 @@ class OpenLoopCtrl(Node):
         self.get_logger().info('Line Follower Navigation Controller initialized!')
         
     def lineDetector_callback(self, msg):
-        if msg.curva and self.cont_cam < 10:
-            self.cont_cam += 1
-            self.curva_linea = True
+        '''if msg.curva:
+            if self.cont_cam < 10:
+                self.cont_cam += 1
+                self.curva_linea = True
+            else:
+                self.cont_cam = 0
         else:
-            self.contr_cam = 0
-            self.curva_linea = msg.curva
+            self.curva_linea = msg.curva'''
         self.error_linea = msg.error
+        self.curva_linea = True
         
         self.get_logger().info(f'Error recibido: {self.error_linea} | Curva: {self.curva_linea}')
     
@@ -171,6 +177,22 @@ class OpenLoopCtrl(Node):
                 else:
                     self.linear_speed = param.value  # Update internal variable
                     self.get_logger().info(f"linear_speed updated to {self.linear_speed}")
+            elif param.name == "max_ang_vel":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("Invalid kd! It just cannot be negative.")
+                    return SetParametersResult(successful=False, reason="kd cannot be negative")
+                else:
+                    self.max_ang_vel = param.value  # Update internal variable
+                    self.get_logger().info(f"max_ang_vel updated to {self.max_ang_vel}")
+            elif param.name == "min_ang_vel":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("Invalid kd! It just cannot be negative.")
+                    return SetParametersResult(successful=False, reason="kd cannot be negative")
+                else:
+                    self.min_ang_vel = param.value  # Update internal variable
+                    self.get_logger().info(f"min_ang_vel updated to {self.min_ang_vel}")
 
         return SetParametersResult(successful=True)
     

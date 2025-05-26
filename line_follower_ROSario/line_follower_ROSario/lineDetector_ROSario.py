@@ -21,7 +21,7 @@ class lineDetector(Node):
         self.declare_parameter('cut_por', 0.6)
         self.declare_parameter('blur_kernel', 3)
         self.declare_parameter('morfo_kernel', 5)
-        self.declare_parameter('params_ready', True)
+        self.declare_parameter('params_ready', False)
 
         self.cut_por = self.get_parameter('cut_por').value
         self.blur_kernel = self.get_parameter('blur_kernel').value

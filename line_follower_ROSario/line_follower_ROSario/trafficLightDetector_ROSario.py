@@ -18,12 +18,12 @@ class colorIdentificator(Node):
         super().__init__('trafficLightDetector_node')
 
         self.declare_parameter('lower_white_H', 0)
-        self.declare_parameter('lower_white_S', 35)
+        self.declare_parameter('lower_white_S', 30)
         self.declare_parameter('lower_white_V', 190)
         self.declare_parameter('upper_white_H', 92)
         self.declare_parameter('upper_white_S', 255)
         self.declare_parameter('upper_white_V', 255)
-        self.declare_parameter('params_ready', False)
+        self.declare_parameter('params_ready', True)
 
         self.lower_white_H = self.get_parameter('lower_white_H').value
         self.lower_white_S = self.get_parameter('lower_white_S').value

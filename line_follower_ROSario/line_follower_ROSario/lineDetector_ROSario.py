@@ -18,10 +18,10 @@ class lineDetector(Node):
     def __init__(self):
         super().__init__('lineDetector_node')
 
-        self.declare_parameter('cut_por', 0.55)
+        self.declare_parameter('cut_por', 0.6)
         self.declare_parameter('blur_kernel', 3)
         self.declare_parameter('morfo_kernel', 5)
-        self.declare_parameter('params_ready', False)
+        self.declare_parameter('params_ready', True)
 
         self.cut_por = self.get_parameter('cut_por').value
         self.blur_kernel = self.get_parameter('blur_kernel').value

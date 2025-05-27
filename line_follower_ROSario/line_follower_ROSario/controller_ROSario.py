@@ -212,7 +212,7 @@ class OpenLoopCtrl(Node):
                     if not self.yellow_flag:
                         self.yellow_speed = self.linear_speed
                         self.yellow_flag = True
-                    self.yellow_speed =- 0.000001
+                    self.yellow_speed *= 0.99
                     linear_speed_loop = max(0.0, self.yellow_speed)
                     self.angular_speed = 0.0 #self.saturate_with_deadband(self.pid_controller_angular(self.error_linea), self.min_ang_vel, self.max_ang_vel)
                     self.get_logger().info("Desacelerando por amarillo")

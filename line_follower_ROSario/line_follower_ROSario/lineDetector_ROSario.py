@@ -21,7 +21,7 @@ class lineDetector(Node):
         self.declare_parameter('cut_por', 0.6)
         self.declare_parameter('blur_kernel', 3)
         self.declare_parameter('morfo_kernel', 5)
-        self.declare_parameter('params_ready', False)
+        self.declare_parameter('params_ready', True)
 
         self.cut_por = self.get_parameter('cut_por').value
         self.blur_kernel = self.get_parameter('blur_kernel').value
@@ -45,12 +45,14 @@ class lineDetector(Node):
         self.line_error_pub = self.create_publisher(RosarioPath, 'line_error', 10)
         self.line_error_msg = RosarioPath()
 
-        #Cuando esta en curva --
-        self.last_error = 0
-        self.last_curva = False
+        #Curva
+        self.smoothed_error = 0
+        self.smoothing_factor = 0.3  # 0 (no change), 1 (instant change)
+        self.MAX_ERROR = 200
+        self.MAX_FRAMES_PERDIDOS = 3
         self.frames_perdidos = 0
-        self.MAX_FRAMES_PERDIDOS = 5 #---
-
+        self.last_error = 0
+        self.last_curva = 0
         # Parameter Callback
         self.add_on_set_parameters_callback(self.parameters_callback)
 
@@ -125,36 +127,52 @@ class lineDetector(Node):
     def calcular_error(self, centroids, frame_width, all_points, debug_img=None):
         center_x = frame_width // 2
         closest_cx = None
-        MAX_ERROR = 200
 
         if len(centroids) <= 2 and len(all_points) >= 6:
             all_points = np.array(all_points)
             x = all_points[:, 0]
             y = all_points[:, 1]
 
+            # Filtro de mediana para eliminar outliers
+            median_x = np.median(x)
+            median_y = np.median(y)
+
+            dist = np.sqrt((x-median_x)**2 + (y - median_y)**2)
+            valid_points_mask = dist < np.percentile(dist,90) #90% de los puntos cercanos
+
+            x_filt = x[valid_points_mask]
+            y_filt = y[valid_points_mask]
+
             # Invertir x/y para que el polinomio sea x = f(y)
-            if len(np.unique(y)) < 4:
-                self.get_logger().warn("Datos insuficientes para ajuste cúbico.")
+            if len(np.unique(y_filt)) < 4:
+                # Puntos no suficientes para el cubic fit
+                if debug_img is not None:
+                    cv.putText(debug_img, 'Datos insuficientes para ajuste cúbico.', (10, 20), cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
                 error = 0
                 curva = False
                 closest_cx = None
+
             else:
                 try:
-                    coefficients = np.polyfit(y, x, 3)  # x = f(y)
+                    weights = 1/(1+dist[valid_points_mask])
+                    coefficients = np.polyfit(y_filt, x_filt, 3, w = weights)  # x = f(y)
                     p = np.poly1d(coefficients)
 
-                    y_target = max(y)
+                    y_target = max(y_filt)
                     x_on_bottom = int(p(y_target))
 
                     if np.isfinite(x_on_bottom):
-                        error = center_x - x_on_bottom
-                        error = max(min(error, MAX_ERROR), -MAX_ERROR)
+                        raw_error = center_x - x_on_bottom
+                        raw_error = max(min(raw_error, self.MAX_ERROR), -self.MAX_ERROR)
                         curva = True
                         closest_cx = None
+                        # Error suave con media móvil exponencial para estabilizar la salida
+                        self.smoothed_error = (self.smoothing_factor * raw_error + (1 - self.smoothing_factor)* self.smoothed_error)
+                        error = int(self.smoothed_error)
 
                         # Dibujar la curva en la imagen de salida (si se proporciona)
                         if debug_img is not None:
-                            y_range = np.linspace(min(y), y_target, 50)
+                            y_range = np.linspace(min(y_filt), y_target, 50)
                             for i in range(len(y_range)-1):
                                 pt1 = (int(p(y_range[i])), int(y_range[i]))
                                 pt2 = (int(p(y_range[i+1])), int(y_range[i+1]))
@@ -183,15 +201,22 @@ class lineDetector(Node):
                     min_dist = dist
                     closest_cx = cx
 
-            error = center_x - closest_cx
+            raw_error = center_x - closest_cx
+            
+            # Smooth error
+            self.smoothed_error = (self.smoothing_factor * raw_error +
+                                   (1 - self.smoothing_factor) * self.smoothed_error)
+            error = self.smoothed_error
             curva = False
 
         else:
             error = 0
             curva = False
             closest_cx = None
+            # Reset smoothing when no data
+            self.smoothed_error = 0
 
-        return error, curva, closest_cx
+        return (error/frame_width), curva, closest_cx
 
 
 
@@ -274,12 +299,12 @@ class lineDetector(Node):
                     closest_cx = None
                     self.get_logger().warn(f"[PERDIDO] Usando último error: {error}")
                 else:
-                    error = 0
+                    error = 0.0
                     curva = False
                     closest_cx = None
 
 
-            self.line_error_msg.error = int(error)
+            self.line_error_msg.error = float(error)
             self.line_error_msg.curva = True 
             self.line_error_pub.publish(self.line_error_msg)
             

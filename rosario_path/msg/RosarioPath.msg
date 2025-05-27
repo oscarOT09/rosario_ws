@@ -1,2 +1,2 @@
-int32 error
+float32 error
 bool curva

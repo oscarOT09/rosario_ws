@@ -44,9 +44,9 @@ class OpenLoopCtrl(Node):
         self.prev_error_ang_rect = 0.0
 
         # PID lineal
-        self.declare_parameter('kp_ang_curv', 0.002)
+        self.declare_parameter('kp_ang_curv', 0.0023)
         self.declare_parameter('ki_ang_curv', 0.0)
-        self.declare_parameter('kd_ang_curv', 0.001)
+        self.declare_parameter('kd_ang_curv', 0.0011)
 
         self.kp_ang_curv = self.get_parameter('kp_ang_curv').value # 1.2
         self.ki_ang_curv = self.get_parameter('ki_ang_curv').value # 0.5
@@ -71,7 +71,7 @@ class OpenLoopCtrl(Node):
         self.new_color = 0
         self.color_state = 0
 
-        self.error_linea = 0
+        self.error_linea = 0.0
         self.curva_linea = False
         self.cont_cam = 0
         # Publicador para el tópico /cmd_vel (comunicación con el Puzzlebot)
@@ -198,7 +198,7 @@ class OpenLoopCtrl(Node):
     
     def control_loop(self):
         if self.controllers_ready:
-            if abs(self.error_linea) > 0:            
+            if abs(self.error_linea) > 0.0:            
                 if self.color_state == 0 or self.color_state == 3:
                     if not self.curva_linea:
                         self.angular_speed = self.saturate_with_deadband(self.pid_controller_angular(self.error_linea), self.min_ang_vel, self.max_ang_vel)                

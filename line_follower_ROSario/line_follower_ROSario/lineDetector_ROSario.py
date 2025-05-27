@@ -18,10 +18,10 @@ class lineDetector(Node):
     def __init__(self):
         super().__init__('lineDetector_node')
 
-        self.declare_parameter('cut_por', 0.6)
+        self.declare_parameter('cut_por', 0.55)
         self.declare_parameter('blur_kernel', 3)
         self.declare_parameter('morfo_kernel', 5)
-        self.declare_parameter('params_ready', True)
+        self.declare_parameter('params_ready', False)
 
         self.cut_por = self.get_parameter('cut_por').value
         self.blur_kernel = self.get_parameter('blur_kernel').value
@@ -49,10 +49,7 @@ class lineDetector(Node):
         self.smoothed_error = 0
         self.smoothing_factor = 0.3  # 0 (no change), 1 (instant change)
         self.MAX_ERROR = 200
-        self.MAX_FRAMES_PERDIDOS = 3
-        self.frames_perdidos = 0
-        self.last_error = 0
-        self.last_curva = 0
+
         # Parameter Callback
         self.add_on_set_parameters_callback(self.parameters_callback)
 
@@ -63,7 +60,7 @@ class lineDetector(Node):
             10
         )
 
-        frecuencia_loop = 10.0
+        frecuencia_loop = 5.0
         self.controller_timer = self.create_timer(1.0 / frecuencia_loop, self.main_loop)
 
         self.get_logger().info('Line Detector initialized!')
@@ -124,6 +121,47 @@ class lineDetector(Node):
         except Exception as e:
             self.get_logger().error(f'Error de conversión: {e}')
 
+    def ransac_polyfit(self, x, y, degree = 3, max_trials = 100, threshold = 10):
+        best_inliers = None
+        best_coef = None
+        best_inlier_num = 0
+
+        n_points = len(x)
+        if n_points < degree + 1:
+            return None, None
+
+        for i in range(max_trials):
+           # Randomly select minimal subset to fit polynomial
+           indices = np.random.choice(n_points, degree + 1, replace = False)
+           x_subset = x[indices]
+           y_subset = y[indices]
+
+           try:
+                coef = np.polyfit(y_subset, x_subset, degree)
+                p = np.poly1d(coef)
+                residuals = np.abs(x - p(y))
+                inliers = residuals < threshold
+                inlier_count = np.sum(inliers)
+                if inlier_count > best_inlier_num:
+                    best_inlier_num = inlier_count
+                    best_inliers = inliers
+                    best_coef = coef
+           except np.RankWarning:
+                # Skip badly conditioned fits
+                continue
+           except Exception:
+                continue
+           
+        if best_coef is None:
+            return None, None
+        try:
+            coef = np.polyfit(y[best_inliers], x[best_inliers], degree)
+            best_poly = np.poly1d(coef)
+            return best_poly, best_inliers
+        except Exception:
+            return np.poly1d(best_coef), best_inliers
+
+           
     def calcular_error(self, centroids, frame_width, all_points, debug_img=None):
         center_x = frame_width // 2
         closest_cx = None
@@ -133,18 +171,7 @@ class lineDetector(Node):
             x = all_points[:, 0]
             y = all_points[:, 1]
 
-            # Filtro de mediana para eliminar outliers
-            median_x = np.median(x)
-            median_y = np.median(y)
-
-            dist = np.sqrt((x-median_x)**2 + (y - median_y)**2)
-            valid_points_mask = dist < np.percentile(dist,90) #90% de los puntos cercanos
-
-            x_filt = x[valid_points_mask]
-            y_filt = y[valid_points_mask]
-
-            # Invertir x/y para que el polinomio sea x = f(y)
-            if len(np.unique(y_filt)) < 4:
+            if len(np.unique(y)) < 4:
                 # Puntos no suficientes para el cubic fit
                 if debug_img is not None:
                     cv.putText(debug_img, 'Datos insuficientes para ajuste cúbico.', (10, 20), cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
@@ -153,43 +180,53 @@ class lineDetector(Node):
                 closest_cx = None
 
             else:
-                try:
-                    weights = 1/(1+dist[valid_points_mask])
-                    coefficients = np.polyfit(y_filt, x_filt, 3, w = weights)  # x = f(y)
-                    p = np.poly1d(coefficients)
+                # Use RANSAC polynomial fitting for robust estimation
+                poly, inliers = self.ransac_polyfit(x, y, degree = 3, max_trials = 200, threshold = 15)
+                if poly is None:
+                    error = 0
+                    curva = False
+                    closest_cx = 0
 
-                    y_target = max(y_filt)
-                    x_on_bottom = int(p(y_target))
+                else:
+                    
+                    y_target = max(y)
+                    x_on_bottom = int(poly(y_target))
 
                     if np.isfinite(x_on_bottom):
                         raw_error = center_x - x_on_bottom
                         raw_error = max(min(raw_error, self.MAX_ERROR), -self.MAX_ERROR)
-                        curva = True
+                        
+                        coef = poly.coefficients
+                        coef_cubico = coef[0]
+                        if abs(coef_cubico) > 0.0004:
+                            curva = True
+                        else:
+                            curva = False
+                        
                         closest_cx = None
+
                         # Error suave con media móvil exponencial para estabilizar la salida
                         self.smoothed_error = (self.smoothing_factor * raw_error + (1 - self.smoothing_factor)* self.smoothed_error)
                         error = int(self.smoothed_error)
 
                         # Dibujar la curva en la imagen de salida (si se proporciona)
                         if debug_img is not None:
-                            y_range = np.linspace(min(y_filt), y_target, 50)
+                            y_range = np.linspace(min(y), y_target, 50)
                             for i in range(len(y_range)-1):
-                                pt1 = (int(p(y_range[i])), int(y_range[i]))
-                                pt2 = (int(p(y_range[i+1])), int(y_range[i+1]))
+                                pt1 = (int(poly(y_range[i])), int(y_range[i]))
+                                pt2 = (int(poly(y_range[i+1])), int(y_range[i+1]))
                                 if np.isfinite(pt1[0]) and np.isfinite(pt2[0]):
                                     cv.line(debug_img, pt1, pt2, (255, 0, 255), 2)
                             cv.circle(debug_img, (x_on_bottom, int(y_target)), 5, (0, 0, 255), -1)
+                            # Visualize inliers and outliers
+                            for (px, py), inlier in zip(zip(x, y), inliers):
+                                color = (0, 255, 0) if inlier else (0, 0, 255)
+                                cv.circle(debug_img, (int(px), int(py)), 3, color, -1)
                     else:
                         self.get_logger().warn("Valor cúbico no finito.")
                         error = 0
                         curva = False
                         closest_cx = None
-
-                except Exception as e:
-                    self.get_logger().error(f"[Cúbico falló]: {e}")
-                    error = 0
-                    curva = False
-                    closest_cx = None
 
         elif len(centroids) >= 3:
             # Error recto: centroide más cercano al centro de imagen
@@ -206,7 +243,7 @@ class lineDetector(Node):
             # Smooth error
             self.smoothed_error = (self.smoothing_factor * raw_error +
                                    (1 - self.smoothing_factor) * self.smoothed_error)
-            error = self.smoothed_error
+            error = int(self.smoothed_error)
             curva = False
 
         else:
@@ -249,8 +286,11 @@ class lineDetector(Node):
             # --- Pre-procesado de la imagen ---
             gray = cv.cvtColor(roi, cv.COLOR_BGR2GRAY)
             blurred = cv.GaussianBlur(gray, (self.blur_kernel, self.blur_kernel), 0)
-            _, binary_inv = cv.threshold(blurred, 100, 255, cv.THRESH_BINARY_INV)
-
+            #_, binary_inv = cv.threshold(blurred, 100, 255, cv.THRESH_BINARY_INV)
+            
+            binary_inv = cv.adaptiveThreshold(blurred, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                          cv.THRESH_BINARY_INV, 199, 5)
+            
             # --- Operaciones morfologicas ---
             kernel = np.ones((self.morfo_kernel, self.morfo_kernel), np.uint8)
             morph = cv.erode(binary_inv, kernel, iterations=3)
@@ -280,43 +320,24 @@ class lineDetector(Node):
                 for point in cnt:
                     all_points.append(point[0])
             
-            error_detectado = False
-
             if len(centroids) > 0 and len(all_points) > 2:
-                output = roi.copy()
                 error, curva, closest_cx = self.calcular_error(centroids, roi.shape[1], all_points, debug_img=output)
-
-
-                self.last_error = error
-                self.last_curva = curva
-                self.frames_perdidos = 0
-                error_detectado = True
             else:
-                self.frames_perdidos += 1
-                if self.frames_perdidos <= self.MAX_FRAMES_PERDIDOS:
-                    error = self.last_error
-                    curva = self.last_curva
-                    closest_cx = None
-                    self.get_logger().warn(f"[PERDIDO] Usando último error: {error}")
-                else:
-                    error = 0.0
-                    curva = False
-                    closest_cx = None
+                error = 0
+                curva = False
+                closest_cx = None
+
 
 
             self.line_error_msg.error = float(error)
-            self.line_error_msg.curva = True 
+            self.line_error_msg.curva = curva
             self.line_error_pub.publish(self.line_error_msg)
             
             cv.putText(output, f"Error: {error}", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 1)
             cv.putText(output, f"Curve: {curva}", (50, 75), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 1)
             cv.putText(output, f"No. centroides: {len(centroids)}", (50, 100), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 0), 1)
 
-            if not error_detectado and self.frames_perdidos <= self.MAX_FRAMES_PERDIDOS:
-                self.get_logger().info(f"Modo persistente activo: error={error}")
-            elif self.frames_perdidos > self.MAX_FRAMES_PERDIDOS:
-                self.get_logger().info("Línea perdida completamente. Reseteando.")
-
+            
             
             if closest_cx is not None:
                 roi_height = roi.shape[0]

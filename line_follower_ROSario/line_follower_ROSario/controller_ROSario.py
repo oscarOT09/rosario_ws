@@ -18,7 +18,7 @@ class OpenLoopCtrl(Node):
         super().__init__('close_loop_ctrl')
         
         # Muestreo
-        frecuencia_controlador = 20.0
+        frecuencia_controlador = 10.0
 
         self.declare_parameter('max_ang_vel', 2.5)
         self.declare_parameter('min_ang_vel', 0.29)
@@ -44,9 +44,9 @@ class OpenLoopCtrl(Node):
         self.prev_error_ang_rect = 0.0
 
         # PID lineal
-        self.declare_parameter('kp_ang_curv', 0.0023)
+        self.declare_parameter('kp_ang_curv', 0.00305)
         self.declare_parameter('ki_ang_curv', 0.0)
-        self.declare_parameter('kd_ang_curv', 0.0011)
+        self.declare_parameter('kd_ang_curv', 0.27505)
 
         self.kp_ang_curv = self.get_parameter('kp_ang_curv').value # 1.2
         self.ki_ang_curv = self.get_parameter('ki_ang_curv').value # 0.5
@@ -57,14 +57,16 @@ class OpenLoopCtrl(Node):
         # Bandera para actualización de los parámetros de los controladores
         self.declare_parameter('controllers_ready', False)
         self.controllers_ready = self.get_parameter('controllers_ready').value
-
+        
         # Mensaje de velocidades para el Puzzlebot
         self.twist = Twist()
         # Velocidad lineal
-        self.declare_parameter('linear_speed', 0.1)
+        self.declare_parameter('linear_speed', 0.0475)
         self.linear_speed = self.get_parameter('linear_speed').value # m/s
         # Velocidad angular
-        self.angular_speed = 0.05  # rad/s
+        self.angular_speed = 0.05  # rad/s 
+        self.yellow_speed = 0.0
+        self.yellow_flag = False
 
         # Estado de identificación de color
         self.prev_color = 0
@@ -100,8 +102,6 @@ class OpenLoopCtrl(Node):
             self.curva_linea = msg.curva'''
         self.error_linea = msg.error
         self.curva_linea = True
-        
-        self.get_logger().info(f'Error recibido: {self.error_linea} | Curva: {self.curva_linea}')
     
     def colors_callback(self, msg):
         self.new_color = msg.data
@@ -198,25 +198,32 @@ class OpenLoopCtrl(Node):
     
     def control_loop(self):
         if self.controllers_ready:
+            self.get_logger().info(f'Error recibido: {self.error_linea} | Color: {self.color_state}')
             if abs(self.error_linea) > 0.0:            
                 if self.color_state == 0 or self.color_state == 3:
                     if not self.curva_linea:
                         self.angular_speed = self.saturate_with_deadband(self.pid_controller_angular(self.error_linea), self.min_ang_vel, self.max_ang_vel)                
                     else:
                         self.angular_speed = self.saturate_with_deadband(self.pid_controller_angular_curv(self.error_linea), self.min_ang_vel, self.max_ang_vel)
-                    #self.get_logger().info("Siguiendo linea")
+                    self.get_logger().info("Siguiendo linea")
+                    linear_speed_loop = self.linear_speed
 
                 elif self.color_state == 2:
-                    self.linear_speed = max(0.0, self.linear_speed - 0.0001)
-                    self.angular_speed = self.saturate_with_deadband(self.pid_controller_angular(self.error_linea), self.min_ang_vel, self.max_ang_vel)
+                    if not self.yellow_flag:
+                        self.yellow_speed = self.linear_speed
+                        self.yellow_flag = True
+                    self.yellow_speed =- 0.000001
+                    linear_speed_loop = max(0.0, self.yellow_speed)
+                    self.angular_speed = 0.0 #self.saturate_with_deadband(self.pid_controller_angular(self.error_linea), self.min_ang_vel, self.max_ang_vel)
                     self.get_logger().info("Desacelerando por amarillo")
 
                 elif self.color_state == 1:
-                    self.linear_speed = 0.0
+                    linear_speed_loop = 0.0
                     self.angular_speed = 0.0
+                    self.yellow_flag = False
                     self.get_logger().info('Detenido por rojo')
 
-                self.twist.linear.x = self.linear_speed
+                self.twist.linear.x = linear_speed_loop
                 self.twist.angular.z = self.angular_speed
                 self.cmd_vel_pub.publish(self.twist)
             else:

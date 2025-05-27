@@ -18,7 +18,7 @@ class colorIdentificator(Node):
         super().__init__('trafficLightDetector_node')
 
         self.declare_parameter('lower_white_H', 0)
-        self.declare_parameter('lower_white_S', 40)
+        self.declare_parameter('lower_white_S', 35)
         self.declare_parameter('lower_white_V', 190)
         self.declare_parameter('upper_white_H', 92)
         self.declare_parameter('upper_white_S', 255)
@@ -41,7 +41,7 @@ class colorIdentificator(Node):
         # Define HSV range for blue color detection
         self.lower_red1 = np.array([0, 100, 0])
         self.upper_red1 = np.array([5, 255, 255])
-        self.lower_red2 = np.array([175, 100, 0])
+        self.lower_red2 = np.array([170, 100, 0])
         self.upper_red2 = np.array([180, 255, 255])
         
         self.lower_yellow = np.array([25, 15, 165])
@@ -72,7 +72,7 @@ class colorIdentificator(Node):
         frecuencia_controlador = 5.0
         self.controller_timer = self.create_timer(1.0 / frecuencia_controlador, self.main_loop)
 
-        self.get_logger().info('Color Identificator initialized!')
+        self.get_logger().info('Traffic Light Identificator initialized!')
 
     def parameters_callback(self, params):
         for param in params:
@@ -159,7 +159,7 @@ class colorIdentificator(Node):
             alto = self.img.shape[0]
 
             corte = int(alto*0.45)
-            flip_img_cut = flip_img[corte:,:]
+            flip_img_cut = flip_img[:corte,:]
             cut_img = flip_img_cut.copy()
             img_rgb = cv.cvtColor(flip_img_cut, cv.COLOR_BGR2RGB)
             img_hsv = cv.cvtColor(img_rgb, cv.COLOR_RGB2HSV)
@@ -183,6 +183,8 @@ class colorIdentificator(Node):
                 
             # Máscara para encontrar luces
             mask_white = cv.inRange(img_hsv, self.lower_white, self.upper_white)
+            mask_white2 = cv.inRange(img_hsv, (170, 35, 190),(180, 255, 255))
+            mask_white = cv.bitwise_or(mask_white, mask_white2)
             kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5, 5))
             mask_trafic = cv.morphologyEx(mask_white, cv.MORPH_OPEN, kernel, iterations=3)
             mask_blur = cv.GaussianBlur(mask_trafic, (5, 5), 2)
@@ -233,7 +235,7 @@ class colorIdentificator(Node):
             # Conversión de la imagen al formato para su publicación
             resultado_rgb = cv.cvtColor(flip_img_cut, cv.COLOR_BGR2RGB)
 
-            self.get_logger().info(f"Color detectado: {self.color_id}")
+            #self.get_logger().info(f"Color detectado: {self.color_id}")
             self.color_msg.data = self.color_id
             self.color_pub.publish(self.color_msg)
             self.out.write(flip_img_cut)

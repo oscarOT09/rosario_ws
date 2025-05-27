@@ -47,7 +47,7 @@ def generate_launch_description():
     trafficLight_detector = Node(
                             name="trafficLightDetector_node",
                             package="line_follower_ROSario",
-                            executable="trafficLightDetector",
+                            executable="trafficLightDetector_ROSario",
                             output = 'screen'
                             )
     
@@ -65,7 +65,7 @@ def generate_launch_description():
     
     delayed_puzzlebot = TimerAction(
                                 period=7.0,
-                                actions=[line_detector, puzzle_controller, camera_recorder]
+                                actions=[line_detector, trafficLight_detector, puzzle_controller,camera_recorder]
                                )
 
     l_d = LaunchDescription([micro_ros_agent, delayed_camera, delayed_puzzlebot])

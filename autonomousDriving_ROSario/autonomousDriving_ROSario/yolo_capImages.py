@@ -1,5 +1,5 @@
 def main():
-    print('Hi from autonomousDriving_ROSario.')
+    print('Hi from yolo_capImages.')
 
 
 if __name__ == '__main__':

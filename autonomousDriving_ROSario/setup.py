@@ -24,7 +24,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'yolo_capImages = autonomousDriving_ROSario.yolo_capImages:main'
+            'yolo_capImages = autonomousDriving_ROSario.yolo_capImages:main',
+            'yolov8_recognition = autonomousDriving_ROSario.yolov8_recognition:main'
         ],
     },
 )

@@ -39,6 +39,13 @@ def generate_launch_description():
                             output = 'screen'
                             )
     
+    frames_pub = Node(
+                            name="framesPublisher_node",
+                            package="autonomousDriving_ROSario",
+                            executable="frames_pc_publisher",
+                            output = 'screen'
+                            )
+    
     '''camera_recorder = Node(
                             name="videoRecorder_node",
                             package="autonomousDriving_ROSario",
@@ -53,7 +60,7 @@ def generate_launch_description():
     
     delayed_puzzlebot = TimerAction(
                                 period=7.0,
-                                actions=[line_detector, trafficLight_detector, puzzle_controller]
+                                actions=[line_detector, puzzle_controller, frames_pub]
                                )
 
     l_d = LaunchDescription([micro_ros_agent, delayed_camera, delayed_puzzlebot])

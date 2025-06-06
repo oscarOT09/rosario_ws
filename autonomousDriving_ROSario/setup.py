@@ -28,7 +28,8 @@ setup(
             'controller_ROSario = autonomousDriving_ROSario.controller_ROSario:main',
             'lineDetector_ROSario = autonomousDriving_ROSario.lineDetector_ROSario:main',
             'trafficLightDetector_ROSario = autonomousDriving_ROSario.trafficLightDetector_ROSario:main',
-            'yolov8_recognition = autonomousDriving_ROSario.yolov8_recognition:main'
+            'yolov8_recognition = autonomousDriving_ROSario.yolov8_recognition:main',
+            'frames_pc_publisher = autonomousDriving_ROSario.frames_pc_publisher:main'
         ],
     },
 )

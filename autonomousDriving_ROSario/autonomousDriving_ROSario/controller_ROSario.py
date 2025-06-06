@@ -9,8 +9,7 @@ import signal
 
 from rcl_interfaces.msg import SetParametersResult
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Int32
-from rosario_path.msg import RosarioPath
+from std_msgs.msg import Int32, Float32
 
 # Definición de la clase
 class OpenLoopCtrl(Node):
@@ -18,7 +17,7 @@ class OpenLoopCtrl(Node):
         super().__init__('close_loop_ctrl')
         
         # Muestreo
-        frecuencia_controlador = 5.0
+        frecuencia_controlador = 10.0
 
         self.declare_parameter('max_ang_vel', 2.5)
         self.declare_parameter('min_ang_vel', 0.29)
@@ -44,9 +43,9 @@ class OpenLoopCtrl(Node):
         self.prev_error_ang_rect = 0.0
 
         # PID lineal
-        self.declare_parameter('kp_ang_curv', 0.00305)
-        self.declare_parameter('ki_ang_curv', 0.0)
-        self.declare_parameter('kd_ang_curv', 0.27505)
+        self.declare_parameter('kp_ang_curv', 0.53)
+        self.declare_parameter('ki_ang_curv', 0.005)
+        self.declare_parameter('kd_ang_curv', 0.0025)
 
         self.kp_ang_curv = self.get_parameter('kp_ang_curv').value # 1.2
         self.ki_ang_curv = self.get_parameter('ki_ang_curv').value # 0.5
@@ -74,13 +73,13 @@ class OpenLoopCtrl(Node):
         self.color_state = 0
 
         self.error_linea = 0.0
-        self.curva_linea = False
+        #self.curva_linea = False
         self.cont_cam = 0
         # Publicador para el tópico /cmd_vel (comunicación con el Puzzlebot)
         self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
 
         # Suscriptor para el tópico /pose (comunicación con el nodo Path Generator)
-        self.lineDetect_sub = self.create_subscription(RosarioPath, 'line_error', self.lineDetector_callback, 10)
+        self.lineDetect_sub = self.create_subscription(Float32, 'line_error', self.lineDetector_callback, 10)
         # Suscriptor para el tópico /color_id (comunicación con el nodo Color Identification)
         self.colorID_sub = self.create_subscription(Int32, 'color_id', self.colors_callback, 10)
 
@@ -100,8 +99,8 @@ class OpenLoopCtrl(Node):
                 self.cont_cam = 0
         else:
             self.curva_linea = msg.curva'''
-        self.error_linea = msg.error
-        self.curva_linea = True
+        self.error_linea = msg.data
+        #self.curva_linea = True
     
     def colors_callback(self, msg):
         self.new_color = msg.data
@@ -201,10 +200,7 @@ class OpenLoopCtrl(Node):
             self.get_logger().info(f'Error recibido: {self.error_linea} | Color: {self.color_state}')
             if abs(self.error_linea) > 0.0:            
                 if self.color_state == 0 or self.color_state == 3:
-                    if not self.curva_linea:
-                        self.angular_speed = self.saturate_with_deadband(self.pid_controller_angular(self.error_linea), self.min_ang_vel, self.max_ang_vel)                
-                    else:
-                        self.angular_speed = self.saturate_with_deadband(self.pid_controller_angular_curv(self.error_linea), self.min_ang_vel, self.max_ang_vel)
+                    self.angular_speed = self.saturate_with_deadband(self.pid_controller_angular_curv(self.error_linea), self.min_ang_vel, self.max_ang_vel)
                     self.get_logger().info("Siguiendo linea")
                     linear_speed_loop = self.linear_speed
 
@@ -270,7 +266,7 @@ class OpenLoopCtrl(Node):
         raise SystemExit
 
 # Main
-def main(args=None):#
+def main(args=None):
     rclpy.init(args=args)
     node = OpenLoopCtrl()
     signal.signal(signal.SIGINT, node.stop_handler)

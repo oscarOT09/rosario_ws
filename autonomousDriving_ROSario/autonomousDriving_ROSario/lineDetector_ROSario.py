@@ -19,14 +19,24 @@ class lineDetector(Node):
 
         self.declare_parameter('cut_por', 0.85)
         self.declare_parameter('mid_por', 0.5)
+        self.declare_parameter('tLower_canny', 50)
+        self.declare_parameter('tUpper_canny', 200)
         self.declare_parameter('blur_kernel', 3)
-        self.declare_parameter('morfo_kernel', 5)
+        self.declare_parameter('erode_kernel', 7)
+        self.declare_parameter('dilate_kernel', 5)
+        self.declare_parameter('iter_erode', 4)
+        self.declare_parameter('iter_dilate', 2)
         self.declare_parameter('params_ready', True)
 
         self.cut_por = self.get_parameter('cut_por').value
         self.mid_por = self.get_parameter('mid_por').value
+        self.tLower_canny = self.get_parameter('tLower_canny').value
+        self.tUpper_canny = self.get_parameter('tUpper_canny').value
         self.blur_kernel = self.get_parameter('blur_kernel').value
-        self.morfo_kernel = self.get_parameter('morfo_kernel').value
+        self.erode_kernel = self.get_parameter('erode_kernel').value
+        self.dilate_kernel = self.get_parameter('dilate_kernel').value
+        self.iter_erode = self.get_parameter('iter_erode').value
+        self.iter_dilate = self.get_parameter('iter_dilate').value
         self.params_ready = self.get_parameter('params_ready').value
         self.img = None
         self.bridge = CvBridge()
@@ -52,8 +62,8 @@ class lineDetector(Node):
             10
         )
 
-        frecuencia_loop = 10.0
-        self.controller_timer = self.create_timer(1.0 / frecuencia_loop, self.main_loop)
+        self.frecuencia_loop = 10.0
+        self.controller_timer = self.create_timer(1.0 / self.frecuencia_loop, self.main_loop)
 
         self.get_logger().info('Line Detector initialized!')
 
@@ -76,13 +86,37 @@ class lineDetector(Node):
                 else:
                     self.blur_kernel = param.value  # Update internal variable
                     #self.get_logger().info(f"ki updated to {self.ki}")
-            elif param.name == "morfo_kernel":
+            elif param.name == "erode_kernel":
                 #check if it is negative
                 if (param.value < 0.0):
                     self.get_logger().warn("No puede ser negativo")
                     return SetParametersResult(successful=False, reason="kd cannot be negative")
                 else:
-                    self.morfo_kernel = param.value  # Update internal variable
+                    self.erode_kernel = param.value  # Update internal variable
+                    #self.get_logger().info(f"kd updated to {self.kd}")
+            elif param.name == "dilate_kernel":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("No puede ser negativo")
+                    return SetParametersResult(successful=False, reason="kd cannot be negative")
+                else:
+                    self.dilate_kernel = param.value  # Update internal variable
+                    #self.get_logger().info(f"kd updated to {self.kd}")
+            elif param.name == "iter_erode":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("No puede ser negativo")
+                    return SetParametersResult(successful=False, reason="kd cannot be negative")
+                else:
+                    self.iter_erode = param.value  # Update internal variable
+                    #self.get_logger().info(f"kd updated to {self.kd}")
+            elif param.name == "iter_dilate":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("No puede ser negativo")
+                    return SetParametersResult(successful=False, reason="kd cannot be negative")
+                else:
+                    self.iter_dilate = param.value  # Update internal variable
                     #self.get_logger().info(f"kd updated to {self.kd}")
             elif param.name == "mid_por":
                 #check if it is negative
@@ -177,15 +211,17 @@ class lineDetector(Node):
                 # Procesamiento por sub ROI
                 gray = cv2.cvtColor(sub_roi, cv2.COLOR_BGR2GRAY)
                 blurred = cv2.GaussianBlur(gray, (3, 3), 0)
-                _, binary_inv = cv2.threshold(blurred, 100, 250, cv2.THRESH_BINARY_INV)
+                binary_inv = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                          cv2.THRESH_BINARY_INV, 199, 5)
 
                 # Operaciones morfológicas
-                kernel = np.ones((3, 3), np.uint8)
-                morph = cv2.erode(binary_inv, kernel, iterations=1)
-                morph = cv2.dilate(morph, kernel, iterations=1)
+                kernel = np.ones((self.erode_kernel, self.erode_kernel), np.uint8)
+                morph_ero = cv2.erode(binary_inv, kernel, iterations=self.iter_erode)
+                kernel = np.ones((self.dilate_kernel, self.dilate_kernel), np.uint8)
+                morph_dil = cv2.dilate(morph_ero, kernel, iterations=self.iter_dilate)
 
                 # Detección de bordes
-                canny_edges = cv2.Canny(morph, 50, 200)
+                canny_edges = cv2.Canny(morph_dil, self.tLower_canny, self.tUpper_canny)
 
                 # Búsqueda de contornos
                 contours, _ = cv2.findContours(canny_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -258,6 +294,31 @@ class lineDetector(Node):
             cv2.putText(output, f"Error: {error:.2f}", (30, 30),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
 
+            # --- COLLAGE de todo el proceso ---Add commentMore actions
+            # Convertir grises a BGR para visualización conjunta
+            gray_bgr = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+            #blurred_bgr = cv2.cvtColor(blurred, cv2.COLOR_GRAY2BGR)
+            binary_inv_bgr = cv2.cvtColor(binary_inv, cv2.COLOR_GRAY2BGR)
+            morphEro_bgr = cv2.cvtColor(morph_ero, cv2.COLOR_GRAY2BGR)
+            morphDIL_bgr = cv2.cvtColor(morph_dil, cv2.COLOR_GRAY2BGR)
+            canny_bgr = cv2.cvtColor(canny_edges, cv2.COLOR_GRAY2BGR)
+
+            # Redimensionar todas las imágenesAdd commentMore actions
+            img1 = cv2.resize(resized_img, self.collage_size)
+            img2 = cv2.resize(roi, self.collage_size)
+            img3 = cv2.resize(gray_bgr, self.collage_size)
+            #img4 = cv2.resize(blurred_bgr, self.collage_size)
+            img4 = cv2.resize(binary_inv_bgr, self.collage_size)
+            img5 = cv2.resize(morphEro_bgr, self.collage_size)
+            img6 = cv2.resize(morphDIL_bgr, self.collage_size)
+            img7 = cv2.resize(canny_bgr, self.collage_size)
+            img8 = cv2.resize(output, self.collage_size)
+
+            # Concatenar en dos filas de cuatro imágenes
+            row1 = cv2.hconcat([img1, img2, img3, img4])
+            row2 = cv2.hconcat([img5, img6, img7, img8])
+            collage = cv2.vconcat([row1, row2])
+
             # --- Creación de video de salida
             if not self.video_writer_initialized:
                 height, width, _ = output.shape
@@ -267,13 +328,14 @@ class lineDetector(Node):
 
                 self.out = cv2.VideoWriter(filename,
                                         cv2.VideoWriter_fourcc(*'mp4v'),
-                                        5, (width, height))
+                                        self.frecuencia_loop, (4*self.collage_size[0], 2*self.collage_size[1]))
 
                 self.video_writer_initialized = True
-            
+                self.get_logger().info("Video para el collage")
+
             # --- Escritura del video de salida ---
             if self.out:
-                self.out.write(output)
+                self.out.write(collage)
 
     def stop_handler(self, signum, frame):
         '''Manejo de interrupción por teclado (ctrl + c)'''

@@ -183,7 +183,6 @@ class lineDetector(Node):
 
         if self.params_ready:
             centroids = [None] * 6  # 2 centroides por sección vertical
-            all_points = []
 
             flip_img = cv2.flip(self.img, 0)
             flip_img = cv2.flip(flip_img, 1)
@@ -210,7 +209,7 @@ class lineDetector(Node):
 
                 # Procesamiento por sub ROI
                 gray = cv2.cvtColor(sub_roi, cv2.COLOR_BGR2GRAY)
-                blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+                blurred = cv2.GaussianBlur(gray, (self.blur_kernel, self.blur_kernel), 0)
                 binary_inv = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                           cv2.THRESH_BINARY_INV, 199, 5)
 
@@ -233,10 +232,6 @@ class lineDetector(Node):
                     cy = y + h // 2 + start_y  # Ajuste al ROI global
                     local_centroids.append((cx, cy))
                     cv2.circle(output, (cx, cy), 7, (0, 0, 255), -1)
-
-                    for point in cnt:
-                        point_x, point_y = point[0]
-                        all_points.append((point_x, point_y + start_y))
 
                 # Guardar hasta 2 centroides por sección (rellenar con None si faltan)
                 for j in range(2):

@@ -19,6 +19,9 @@ class OpenLoopCtrl(Node):
         # Muestreo
         frecuencia_controlador = 30.0
 
+        self.declare_parameter('init_time', 2)
+        self.init_time = self.get_parameter('init_time').value
+
         self.declare_parameter('max_ang_vel', 2.5)
         self.declare_parameter('min_ang_vel', 0.29)
 
@@ -183,12 +186,20 @@ class OpenLoopCtrl(Node):
                 else:
                     self.min_ang_vel = param.value  # Update internal variable
                     self.get_logger().info(f"min_ang_vel updated to {self.min_ang_vel}")
+            elif param.name == "init_time":
+                #check if it is negative
+                if (param.value < 0.0):
+                    self.get_logger().warn("Invalid kd! It just cannot be negative.")
+                    return SetParametersResult(successful=False, reason="kd cannot be negative")
+                else:
+                    self.init_time = param.value  # Update internal variable
+                    self.get_logger().info(f"init_time updated to {self.init_time}")
 
         return SetParametersResult(successful=True)
     
     def control_loop(self):
         if self.controllers_ready:
-            if self.cont_cam <= 60:
+            if self.cont_cam <= self.init_time:
                 self.error_linea = 0.0
                 self.cont_cam += 1
                 

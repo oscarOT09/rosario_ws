@@ -18,7 +18,7 @@ class lineDetector(Node):
         super().__init__('lineDetector_node')
 
         self.declare_parameter('cut_por', 0.85)
-        self.declare_parameter('mid_por', 0.5)
+        self.declare_parameter('mid_por', 0.6)
         self.declare_parameter('tLower_canny', 50)
         self.declare_parameter('tUpper_canny', 200)
         self.declare_parameter('blur_kernel', 3)
@@ -26,7 +26,7 @@ class lineDetector(Node):
         self.declare_parameter('dilate_kernel', 5)
         self.declare_parameter('iter_erode', 4)
         self.declare_parameter('iter_dilate', 2)
-        self.declare_parameter('params_ready', False)
+        self.declare_parameter('params_ready', True)
 
         self.cut_por = self.get_parameter('cut_por').value
         self.mid_por = self.get_parameter('mid_por').value
@@ -150,7 +150,7 @@ class lineDetector(Node):
         # Calcular errores normalizados
         for centroide in midpoint_centroids:
             if centroide:
-                error = centroide[0] - centro_x
+                error = centro_x - centroide[0] #centroide[0] - centro_x
                 error_normalizado = error / (frame_width)  # valor entre -1 y 1
                 errores_normalizados.append(error_normalizado)
             else:
@@ -198,6 +198,13 @@ class lineDetector(Node):
 
             roi = resized_img[int(self.target_height * self.cut_por):, :]
             roi_height, roi_width = roi.shape[:2]
+            
+            # División del ancho del ROI en 15%, 70%, 15%
+            w1 = int(roi_width * ((1.0-self.mid_por)/2))
+            w2 = int(roi_width * self.mid_por)
+            column_areas = [(0, w1), (w1, w1 + w2), (w1 + w2, roi_width)]
+            roi = roi[:, w1:w1 + w2]
+
             output = roi.copy()
 
             # División de ROI en 3 secciones verticales iguales (por alto)
@@ -241,29 +248,22 @@ class lineDetector(Node):
 
                 cv2.drawContours(output[start_y:end_y], contours, -1, (0, 255, 0), 2)
 
-            # División del ancho del ROI en 15%, 70%, 15%
-            w1 = int(roi_width * ((1.0-self.mid_por)/2))
-            w2 = int(roi_width * self.mid_por)
-            column_areas = [(0, w1), (w1, w1 + w2), (w1 + w2, roi_width)]
+            
 
             # Calcular punto medio de cada par (por sección)
             midpoint_centroids = []
-            for i in range(0, 6, 2):
+            for i in [0,2,4]:
                 c1, c2 = centroids[i], centroids[i+1]
                 if c1 and c2:
-                    # Verifica si ambos centroides están en la columna central
-                    if (column_areas[1][0] <= c1[0] <= column_areas[1][1]) and (column_areas[1][0] <= c2[0] <= column_areas[1][1]):
-                        mx = (c1[0] + c2[0]) // 2
-                        my = (c1[1] + c2[1]) // 2
-                        midpoint_centroids.append((mx, my))
-                        cv2.circle(output, (mx, my), 5, (255, 0, 0), -1)
-                    else:
-                        midpoint_centroids.append(None)
+                    mx = (c1[0] + c2[0]) // 2
+                    my = (c1[1] + c2[1]) // 2
+                    midpoint_centroids.append((mx, my))
+                    cv2.circle(output, (mx, my), 5, (255, 0, 0), -1)
                 else:
                     midpoint_centroids.append(None)
                     
             # Conteo de centroides en columnas (solo para los 6 originales)
-            conteo_columnas = [0, 0, 0]
+            '''conteo_columnas = [0, 0, 0]
             for c in centroids:
                 if c:
                     cx, _ = c
@@ -272,26 +272,27 @@ class lineDetector(Node):
                     elif cx < column_areas[1][1]:
                         conteo_columnas[1] += 1
                     else:
-                        conteo_columnas[2] += 1
+                        conteo_columnas[2] += 1'''
 
-            # Dibujar divisiones de columnas
-            for _, x in column_areas[0:]:
-                cv2.line(output, (x, 0), (x, roi.shape[0]), (255, 255, 255), 1)
+            '''# Dibujar líneas de separación de columnas
+            for x in [column_areas[0][1], column_areas[1][1]]:
+                cv2.line(output, (x, 0), (x, roi_height), (255, 255, 255), 2)  # línea blanca'''
 
-            # Mostrar conteo por columnas
+
+            '''# Mostrar conteo por columnas
             for i, count in enumerate(conteo_columnas):
                 x_text = column_areas[i][0] + 10
                 cv2.putText(output, f"C{i+1}:{count}", (x_text, roi_height-10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)'''
 
-            error = self.calcular_error_ponderado(midpoint_centroids, roi_width)
+            error = self.calcular_error_ponderado(centroids, roi.shape[1])
             
 
             self.line_error_msg.data = float(error)
             self.line_error_pub.publish(self.line_error_msg)
 
-            cv2.putText(output, f"Error: {error:.2f}", (30, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
+            '''cv2.putText(output, f"Error: {error:.2f}", (30, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)'''
 
             # --- COLLAGE de todo el proceso ---Add commentMore actions
             # Convertir grises a BGR para visualización conjunta

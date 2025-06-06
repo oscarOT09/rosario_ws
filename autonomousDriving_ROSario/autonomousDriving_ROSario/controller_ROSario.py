@@ -19,7 +19,7 @@ class OpenLoopCtrl(Node):
         # Muestreo
         frecuencia_controlador = 30.0
 
-        self.declare_parameter('init_time', 2)
+        self.declare_parameter('init_time', 60)
         self.init_time = self.get_parameter('init_time').value
 
         self.declare_parameter('max_ang_vel', 2.5)
@@ -80,6 +80,8 @@ class OpenLoopCtrl(Node):
         self.cont_cam = 0
         # Publicador para el tópico /cmd_vel (comunicación con el Puzzlebot)
         self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
+        self.pid_msg = Float32()
+        self.pid_pub = self.create_publisher(Float32, 'pid_output', 10)
 
         # Suscriptor para el tópico /pose (comunicación con el nodo Path Generator)
         self.lineDetect_sub = self.create_subscription(Float32, 'line_error', self.lineDetector_callback, 10)
@@ -202,11 +204,12 @@ class OpenLoopCtrl(Node):
             if self.cont_cam <= self.init_time:
                 self.error_linea = 0.0
                 self.cont_cam += 1
-                
+            pid_output = 0.0
             self.get_logger().info(f'Error recibido: {self.error_linea} | Color: {self.color_state}')
             if abs(self.error_linea) > 0.0:            
                 if self.color_state == 0 or self.color_state == 3:
-                    self.angular_speed = self.saturate_with_deadband(self.pid_controller_angular_curv(self.error_linea), self.min_ang_vel, self.max_ang_vel)
+                    pid_output = self.pid_controller_angular_curv(self.error_linea)
+                    self.angular_speed = self.saturate_with_deadband(pid_output, self.min_ang_vel, self.max_ang_vel)
                     self.get_logger().info("Siguiendo linea")
                     linear_speed_loop = self.linear_speed
 
@@ -228,11 +231,14 @@ class OpenLoopCtrl(Node):
                 self.twist.linear.x = linear_speed_loop
                 self.twist.angular.z = self.angular_speed
                 self.cmd_vel_pub.publish(self.twist)
+                self.pid_msg.data = pid_output
+                self.pid_pub.publish(self.pid_msg)
             else:
                 self.twist.linear.x = self.linear_speed
                 self.twist.angular.z = 0.0
                 self.cmd_vel_pub.publish(self.twist)
         else:
+            self.cont_cam = 0.0
             self.twist.linear.x = 0.0
             self.twist.angular.z = 0.0
             self.cmd_vel_pub.publish(self.twist)

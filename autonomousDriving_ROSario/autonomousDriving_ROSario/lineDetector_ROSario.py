@@ -26,7 +26,7 @@ class lineDetector(Node):
         self.declare_parameter('dilate_kernel', 5)
         self.declare_parameter('iter_erode', 4)
         self.declare_parameter('iter_dilate', 2)
-        self.declare_parameter('params_ready', True)
+        self.declare_parameter('params_ready', False)
 
         self.cut_por = self.get_parameter('cut_por').value
         self.mid_por = self.get_parameter('mid_por').value
@@ -62,7 +62,7 @@ class lineDetector(Node):
             10
         )
 
-        self.frecuencia_loop = 10.0
+        self.frecuencia_loop = 30.0
         self.controller_timer = self.create_timer(1.0 / self.frecuencia_loop, self.main_loop)
 
         self.get_logger().info('Line Detector initialized!')
@@ -246,23 +246,27 @@ class lineDetector(Node):
 
                 cv2.drawContours(output[start_y:end_y], contours, -1, (0, 255, 0), 2)
 
-            # Calcular punto medio de cada par (por sección)
-            midpoint_centroids = []
-            for i in range(0, 6, 2):
-                c1, c2 = centroids[i], centroids[i+1]
-                if c1 and c2:
-                    mx = (c1[0] + c2[0]) // 2
-                    my = (c1[1] + c2[1]) // 2
-                    midpoint_centroids.append((mx, my))
-                    cv2.circle(output, (mx, my), 5, (255, 0, 0), -1)
-                else:
-                    midpoint_centroids.append(None)
-
             # División del ancho del ROI en 15%, 70%, 15%
             w1 = int(roi_width * ((1.0-self.mid_por)/2))
             w2 = int(roi_width * self.mid_por)
             column_areas = [(0, w1), (w1, w1 + w2), (w1 + w2, roi_width)]
 
+            # Calcular punto medio de cada par (por sección)
+            midpoint_centroids = []
+            for i in range(0, 6, 2):
+                c1, c2 = centroids[i], centroids[i+1]
+                if c1 and c2:
+                    # Verifica si ambos centroides están en la columna central
+                    if (column_areas[1][0] <= c1[0] <= column_areas[1][1]) and (column_areas[1][0] <= c2[0] <= column_areas[1][1]):
+                        mx = (c1[0] + c2[0]) // 2
+                        my = (c1[1] + c2[1]) // 2
+                        midpoint_centroids.append((mx, my))
+                        cv2.circle(output, (mx, my), 5, (255, 0, 0), -1)
+                    else:
+                        midpoint_centroids.append(None)
+                else:
+                    midpoint_centroids.append(None)
+                    
             # Conteo de centroides en columnas (solo para los 6 originales)
             conteo_columnas = [0, 0, 0]
             for c in centroids:

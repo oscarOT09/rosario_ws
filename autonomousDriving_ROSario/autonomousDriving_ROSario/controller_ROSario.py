@@ -17,7 +17,7 @@ class OpenLoopCtrl(Node):
         super().__init__('close_loop_ctrl')
         
         # Muestreo
-        frecuencia_controlador = 10.0
+        frecuencia_controlador = 30.0
 
         self.declare_parameter('max_ang_vel', 2.5)
         self.declare_parameter('min_ang_vel', 0.29)
@@ -91,16 +91,7 @@ class OpenLoopCtrl(Node):
         self.get_logger().info('Line Follower Navigation Controller initialized!')
         
     def lineDetector_callback(self, msg):
-        '''if msg.curva:
-            if self.cont_cam < 10:
-                self.cont_cam += 1
-                self.curva_linea = True
-            else:
-                self.cont_cam = 0
-        else:
-            self.curva_linea = msg.curva'''
         self.error_linea = msg.data
-        #self.curva_linea = True
     
     def colors_callback(self, msg):
         self.new_color = msg.data
@@ -197,6 +188,10 @@ class OpenLoopCtrl(Node):
     
     def control_loop(self):
         if self.controllers_ready:
+            if self.cont_cam <= 60:
+                self.error_linea = 0.0
+                self.cont_cam += 1
+                
             self.get_logger().info(f'Error recibido: {self.error_linea} | Color: {self.color_state}')
             if abs(self.error_linea) > 0.0:            
                 if self.color_state == 0 or self.color_state == 3:

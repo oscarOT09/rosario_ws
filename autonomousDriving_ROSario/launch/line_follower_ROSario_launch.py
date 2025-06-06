@@ -13,7 +13,7 @@ def generate_launch_description():
                                     )
     
     camera_agent = ExecuteProcess(
-                                    cmd=['ros2', 'launch', 'ros_deep_learning', 'video_source.ros2.launch'], #ros2 launch ros_deep_learning video_source.ros2.launch
+                                    cmd=['ros2', 'launch', 'puzzlebot_ros', 'camera_jetson.launch.py'], # ros2 launch puzzlebot_ros camera_jetson.launch.py #ros2 launch ros_deep_learning video_source.ros2.launch
                                     output='screen'
                                     )
 

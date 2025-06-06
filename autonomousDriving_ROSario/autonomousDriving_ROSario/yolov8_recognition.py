@@ -14,7 +14,7 @@ from datetime import datetime
 class YoloInference(Node):
     def __init__(self):
         super().__init__('yolo_node')
-        self.model = YOLO(os.path.expanduser('~/rosario_ws/src/autonomousDriving_ROSario/models/yolov8n_rosario.v3.pt')) #self.model = YOLO('~/rosario_ws/src/autonomousDriving_ROSario/models/oscarObjects_best.pt') #YOLO('~/ros2_cadi_ws/src/yolov8_ros2/yolov8_ros2/yolov8x.pt')
+        self.model = YOLO(os.path.expanduser('~/rosario_ws/src/autonomousDriving_ROSario/models/yolov8n_rosario.v5.2.pt')) #self.model = YOLO('~/rosario_ws/src/autonomousDriving_ROSario/models/oscarObjects_best.pt') #YOLO('~/ros2_cadi_ws/src/yolov8_ros2/yolov8_ros2/yolov8x.pt')
         #self.yolo_msg = Yolov8Inference()
         self.img = None
         self.bridge = CvBridge()
@@ -27,7 +27,7 @@ class YoloInference(Node):
         #self.yolo_pub = self.create_publisher(Yolov8Inference, '/Yolov8_inference', 10)
         self.yolo_img_pub = self.create_publisher(Image, '/inference_result', 10)
         
-        self.node_hz =5.0
+        self.node_hz = 15.0
         timer_period = 1.0/self.node_hz
         self.timer = self.create_timer(timer_period, self.timer_callback)
 

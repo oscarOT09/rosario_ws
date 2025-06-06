@@ -1,9 +1,9 @@
 import rclpy
+import cv2
+
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-import cv2
-
 from datetime import datetime
 
 class framesPublisher(Node):
@@ -18,7 +18,7 @@ class framesPublisher(Node):
         self.sub = self.create_subscription(Image, '/video_source/raw', self.camera_callback, 10)
         self.frame_pub = self.create_publisher(Image, '/jetson_frame', 10)
         
-        self.node_hz = 5.0
+        self.node_hz = 15.0
         timer_period = 1.0/self.node_hz
         self.timer = self.create_timer(timer_period, self.frames2pc_pub)
 

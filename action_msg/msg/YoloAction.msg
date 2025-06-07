@@ -1,7 +1,9 @@
-bool parar
-bool seguir
-bool girar_r
+bool rojo
+bool amarillo
+bool verde
+bool adelante
 bool girar_l
-bool continuar
-bool desacelerar
-bool reducir
+bool girar_r
+bool trabajo
+bool ceder
+bool alto

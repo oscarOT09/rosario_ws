@@ -1,0 +1,6 @@
+source;share/close_loop_traffic_nav_ROSario/hook/pythonpath.ps1
+source;share/close_loop_traffic_nav_ROSario/hook/pythonpath.dsv
+source;share/close_loop_traffic_nav_ROSario/hook/pythonpath.sh
+source;share/close_loop_traffic_nav_ROSario/hook/ament_prefix_path.ps1
+source;share/close_loop_traffic_nav_ROSario/hook/ament_prefix_path.dsv
+source;share/close_loop_traffic_nav_ROSario/hook/ament_prefix_path.sh

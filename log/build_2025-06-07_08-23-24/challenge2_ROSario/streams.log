@@ -1,0 +1,46 @@
+[2.125s] Invoking command in '/home/xyg/ros2_ws/src/challenge2_ROSario': PYTHONPATH=/home/xyg/ros2_ws/src/build/challenge2_ROSario/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/xyg/ros2_ws/src/install/challenge2_ROSario/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../build/challenge2_ROSario build --build-base /home/xyg/ros2_ws/src/build/challenge2_ROSario/build install --record /home/xyg/ros2_ws/src/build/challenge2_ROSario/install.log --single-version-externally-managed install_data
+[2.503s] running egg_info
+[2.504s] creating ../build/challenge2_ROSario/challenge2_ROSario.egg-info
+[2.506s] writing ../build/challenge2_ROSario/challenge2_ROSario.egg-info/PKG-INFO
+[2.509s] writing dependency_links to ../build/challenge2_ROSario/challenge2_ROSario.egg-info/dependency_links.txt
+[2.509s] writing entry points to ../build/challenge2_ROSario/challenge2_ROSario.egg-info/entry_points.txt
+[2.509s] writing requirements to ../build/challenge2_ROSario/challenge2_ROSario.egg-info/requires.txt
+[2.509s] writing top-level names to ../build/challenge2_ROSario/challenge2_ROSario.egg-info/top_level.txt
+[2.510s] writing manifest file '../build/challenge2_ROSario/challenge2_ROSario.egg-info/SOURCES.txt'
+[2.512s] reading manifest file '../build/challenge2_ROSario/challenge2_ROSario.egg-info/SOURCES.txt'
+[2.512s] adding license file 'LICENSE'
+[2.514s] writing manifest file '../build/challenge2_ROSario/challenge2_ROSario.egg-info/SOURCES.txt'
+[2.516s] running build
+[2.517s] running build_py
+[2.517s] creating /home/xyg/ros2_ws/src/build/challenge2_ROSario/build
+[2.517s] creating /home/xyg/ros2_ws/src/build/challenge2_ROSario/build/lib
+[2.517s] creating /home/xyg/ros2_ws/src/build/challenge2_ROSario/build/lib/challenge2_ROSario
+[2.517s] copying challenge2_ROSario/open_control_node.py -> /home/xyg/ros2_ws/src/build/challenge2_ROSario/build/lib/challenge2_ROSario
+[2.517s] copying challenge2_ROSario/__init__.py -> /home/xyg/ros2_ws/src/build/challenge2_ROSario/build/lib/challenge2_ROSario
+[2.517s] copying challenge2_ROSario/path_ROSario.py -> /home/xyg/ros2_ws/src/build/challenge2_ROSario/build/lib/challenge2_ROSario
+[2.517s] running install
+[2.518s] running install_lib
+[2.520s] creating /home/xyg/ros2_ws/src/install/challenge2_ROSario/lib/python3.10/site-packages/challenge2_ROSario
+[2.520s] copying /home/xyg/ros2_ws/src/build/challenge2_ROSario/build/lib/challenge2_ROSario/open_control_node.py -> /home/xyg/ros2_ws/src/install/challenge2_ROSario/lib/python3.10/site-packages/challenge2_ROSario
+[2.520s] copying /home/xyg/ros2_ws/src/build/challenge2_ROSario/build/lib/challenge2_ROSario/__init__.py -> /home/xyg/ros2_ws/src/install/challenge2_ROSario/lib/python3.10/site-packages/challenge2_ROSario
+[2.522s] copying /home/xyg/ros2_ws/src/build/challenge2_ROSario/build/lib/challenge2_ROSario/path_ROSario.py -> /home/xyg/ros2_ws/src/install/challenge2_ROSario/lib/python3.10/site-packages/challenge2_ROSario
+[2.523s] byte-compiling /home/xyg/ros2_ws/src/install/challenge2_ROSario/lib/python3.10/site-packages/challenge2_ROSario/open_control_node.py to open_control_node.cpython-310.pyc
+[2.529s] byte-compiling /home/xyg/ros2_ws/src/install/challenge2_ROSario/lib/python3.10/site-packages/challenge2_ROSario/__init__.py to __init__.cpython-310.pyc
+[2.530s] byte-compiling /home/xyg/ros2_ws/src/install/challenge2_ROSario/lib/python3.10/site-packages/challenge2_ROSario/path_ROSario.py to path_ROSario.cpython-310.pyc
+[2.535s] running install_data
+[2.535s] creating /home/xyg/ros2_ws/src/install/challenge2_ROSario/share/ament_index
+[2.535s] creating /home/xyg/ros2_ws/src/install/challenge2_ROSario/share/ament_index/resource_index
+[2.537s] creating /home/xyg/ros2_ws/src/install/challenge2_ROSario/share/ament_index/resource_index/packages
+[2.538s] copying resource/challenge2_ROSario -> /home/xyg/ros2_ws/src/install/challenge2_ROSario/share/ament_index/resource_index/packages
+[2.538s] copying package.xml -> /home/xyg/ros2_ws/src/install/challenge2_ROSario/share/challenge2_ROSario
+[2.538s] creating /home/xyg/ros2_ws/src/install/challenge2_ROSario/share/challenge2_ROSario/launch
+[2.538s] copying launch/open_control_ROSario_launch.py -> /home/xyg/ros2_ws/src/install/challenge2_ROSario/share/challenge2_ROSario/launch
+[2.538s] creating /home/xyg/ros2_ws/src/install/challenge2_ROSario/share/challenge2_ROSario/config
+[2.538s] copying config/params.yaml -> /home/xyg/ros2_ws/src/install/challenge2_ROSario/share/challenge2_ROSario/config
+[2.538s] running install_egg_info
+[2.543s] Copying ../build/challenge2_ROSario/challenge2_ROSario.egg-info to /home/xyg/ros2_ws/src/install/challenge2_ROSario/lib/python3.10/site-packages/challenge2_ROSario-0.0.0-py3.10.egg-info
+[2.543s] running install_scripts
+[2.599s] Installing open_control_node script to /home/xyg/ros2_ws/src/install/challenge2_ROSario/lib/challenge2_ROSario
+[2.600s] Installing path_ROSario script to /home/xyg/ros2_ws/src/install/challenge2_ROSario/lib/challenge2_ROSario
+[2.603s] writing list of installed files to '/home/xyg/ros2_ws/src/build/challenge2_ROSario/install.log'
+[2.713s] Invoked command in '/home/xyg/ros2_ws/src/challenge2_ROSario' returned '0': PYTHONPATH=/home/xyg/ros2_ws/src/build/challenge2_ROSario/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/xyg/ros2_ws/src/install/challenge2_ROSario/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../build/challenge2_ROSario build --build-base /home/xyg/ros2_ws/src/build/challenge2_ROSario/build install --record /home/xyg/ros2_ws/src/build/challenge2_ROSario/install.log --single-version-externally-managed install_data

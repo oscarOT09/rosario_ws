@@ -1,0 +1,6 @@
+{
+  "package_name": "feedback_msg",
+  "non_idl_tuples": [
+    "/home/xyg/ros2_ws/src/feedback_msg:msg/YoloResults.msg"
+  ]
+}

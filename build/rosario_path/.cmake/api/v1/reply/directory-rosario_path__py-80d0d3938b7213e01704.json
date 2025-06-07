@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "rosario_path__py",
+		"source" : "/home/xyg/ros2_ws/src/build/rosario_path/rosario_path__py"
+	}
+}

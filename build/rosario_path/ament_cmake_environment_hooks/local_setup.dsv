@@ -1,0 +1,4 @@
+source;share/rosario_path/environment/ament_prefix_path.sh
+source;share/rosario_path/environment/library_path.sh
+source;share/rosario_path/environment/path.sh
+source;share/rosario_path/environment/pythonpath.sh

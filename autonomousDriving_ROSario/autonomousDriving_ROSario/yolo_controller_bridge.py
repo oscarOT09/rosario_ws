@@ -25,8 +25,8 @@ class SignalLogger(Node):
         )
 
         # Parametros Dinamicos
-        self.declare_parameter('min_signal_area', 7500)
-        self.declare_parameter('min_traffic_area', 3500)
+        self.declare_parameter('min_signal_area', 7000)
+        self.declare_parameter('min_traffic_area', 3000)
 
         # Frecuencia de publicación en Hz
         self.node_hz = 15.0
@@ -42,7 +42,7 @@ class SignalLogger(Node):
         self.last_detections = msg.yolov8_inference
 
     def timer_callback(self):
-        # Crear mensaje de acción vacío (todo False)
+        # Crear mensaje de acción (False)
         action_msg = YoloAction()
 
         # Si no hay detecciones, publicar mensaje vacío
@@ -67,12 +67,11 @@ class SignalLogger(Node):
             "trafficlight_red": 3,
         }
 
+        # Obtencion de nuevos cambios en los parametros
         min_signal_area = self.get_parameter('min_signal_area').get_parameter_value().integer_value
         min_traffic_area = self.get_parameter('min_traffic_area').get_parameter_value().integer_value
 
-        self.add_on_set_parameters_callback(self.parameter_callback)
-
-
+        # Calculo del area
         max_signal_area = 0
         selected_signal = 0
 
@@ -111,7 +110,7 @@ class SignalLogger(Node):
 
         self.action_pub.publish(action_msg)
 
-        # Logs útiles
+        # Logs de Debuggeo
         if final_signal:
             name = list(SIGNALS.keys())[list(SIGNALS.values()).index(final_signal)]
             self.get_logger().info(f"Señal seleccionada: {name} (área {max_signal_area})")
@@ -121,12 +120,6 @@ class SignalLogger(Node):
 
         # Reiniciar detecciones tras publicarlas (opcional)
         self.last_detections = []
-
-    def parameter_callback(self, params):
-        for param in params:
-            if param.name in ["min_signal_area", "min_traffic_area"]:
-                self.get_logger().info(f"Parámetro '{param.name}' cambiado a {param.value}")
-        return rclpy.parameter.ParameterEventHandler.Result(successful=True)
 
 def main(args=None):
     rclpy.init(args=args)

@@ -1,0 +1,36 @@
+running egg_info
+creating ../build/open_cv_examples/open_cv_examples.egg-info
+writing ../build/open_cv_examples/open_cv_examples.egg-info/PKG-INFO
+writing dependency_links to ../build/open_cv_examples/open_cv_examples.egg-info/dependency_links.txt
+writing entry points to ../build/open_cv_examples/open_cv_examples.egg-info/entry_points.txt
+writing requirements to ../build/open_cv_examples/open_cv_examples.egg-info/requires.txt
+writing top-level names to ../build/open_cv_examples/open_cv_examples.egg-info/top_level.txt
+writing manifest file '../build/open_cv_examples/open_cv_examples.egg-info/SOURCES.txt'
+reading manifest file '../build/open_cv_examples/open_cv_examples.egg-info/SOURCES.txt'
+adding license file 'LICENSE'
+writing manifest file '../build/open_cv_examples/open_cv_examples.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/xyg/ros2_ws/src/build/open_cv_examples/build
+creating /home/xyg/ros2_ws/src/build/open_cv_examples/build/lib
+creating /home/xyg/ros2_ws/src/build/open_cv_examples/build/lib/open_cv_examples
+copying open_cv_examples/__init__.py -> /home/xyg/ros2_ws/src/build/open_cv_examples/build/lib/open_cv_examples
+copying open_cv_examples/opencv_act1.py -> /home/xyg/ros2_ws/src/build/open_cv_examples/build/lib/open_cv_examples
+running install
+running install_lib
+creating /home/xyg/ros2_ws/src/install/open_cv_examples/lib/python3.10/site-packages/open_cv_examples
+copying /home/xyg/ros2_ws/src/build/open_cv_examples/build/lib/open_cv_examples/__init__.py -> /home/xyg/ros2_ws/src/install/open_cv_examples/lib/python3.10/site-packages/open_cv_examples
+copying /home/xyg/ros2_ws/src/build/open_cv_examples/build/lib/open_cv_examples/opencv_act1.py -> /home/xyg/ros2_ws/src/install/open_cv_examples/lib/python3.10/site-packages/open_cv_examples
+byte-compiling /home/xyg/ros2_ws/src/install/open_cv_examples/lib/python3.10/site-packages/open_cv_examples/__init__.py to __init__.cpython-310.pyc
+byte-compiling /home/xyg/ros2_ws/src/install/open_cv_examples/lib/python3.10/site-packages/open_cv_examples/opencv_act1.py to opencv_act1.cpython-310.pyc
+running install_data
+creating /home/xyg/ros2_ws/src/install/open_cv_examples/share/ament_index
+creating /home/xyg/ros2_ws/src/install/open_cv_examples/share/ament_index/resource_index
+creating /home/xyg/ros2_ws/src/install/open_cv_examples/share/ament_index/resource_index/packages
+copying resource/open_cv_examples -> /home/xyg/ros2_ws/src/install/open_cv_examples/share/ament_index/resource_index/packages
+copying package.xml -> /home/xyg/ros2_ws/src/install/open_cv_examples/share/open_cv_examples
+running install_egg_info
+Copying ../build/open_cv_examples/open_cv_examples.egg-info to /home/xyg/ros2_ws/src/install/open_cv_examples/lib/python3.10/site-packages/open_cv_examples-0.0.0-py3.10.egg-info
+running install_scripts
+Installing opencv_act1 script to /home/xyg/ros2_ws/src/install/open_cv_examples/lib/open_cv_examples
+writing list of installed files to '/home/xyg/ros2_ws/src/build/open_cv_examples/install.log'

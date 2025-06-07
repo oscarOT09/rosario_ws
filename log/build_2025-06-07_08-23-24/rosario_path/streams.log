@@ -1,0 +1,124 @@
+[1.609s] Invoking command in '/home/xyg/ros2_ws/src/build/rosario_path': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/xyg/rosario_ws/install/puzzlebot_localisation:/home/xyg/rosario_ws/install/puzzlebot_control:/home/xyg/rosario_ws/install/open_cv_examples:/home/xyg/rosario_ws/install/line_follower_ROSario:/home/xyg/rosario_ws/install/close_loop_traffic_nav_ROSario:/home/xyg/rosario_ws/install/close_loop_control_ROSario:/home/xyg/rosario_ws/install/challenge2_ROSario:/home/xyg/rosario_ws/install/autonomousDriving_ROSario:/home/xyg/rosario_ws/install/actividadR2_ROSario:/opt/ros/humble /usr/bin/cmake /home/xyg/ros2_ws/src/rosario_path -DCMAKE_INSTALL_PREFIX=/home/xyg/ros2_ws/src/install/rosario_path
+[1.667s] -- The C compiler identification is GNU 11.4.0
+[1.758s] -- The CXX compiler identification is GNU 11.4.0
+[1.768s] -- Detecting C compiler ABI info
+[1.946s] -- Detecting C compiler ABI info - done
+[1.956s] -- Check for working C compiler: /usr/bin/cc - skipped
+[1.957s] -- Detecting C compile features
+[1.958s] -- Detecting C compile features - done
+[1.963s] -- Detecting CXX compiler ABI info
+[2.130s] -- Detecting CXX compiler ABI info - done
+[2.142s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[2.142s] -- Detecting CXX compile features
+[2.142s] -- Detecting CXX compile features - done
+[2.142s] -- Found ament_cmake: 1.3.11 (/opt/ros/humble/share/ament_cmake/cmake)
+[2.439s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[2.699s] -- Found std_msgs: 4.2.4 (/opt/ros/humble/share/std_msgs/cmake)
+[2.755s] -- Found rosidl_generator_c: 3.1.6 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[2.765s] -- Found rosidl_adapter: 3.1.6 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[2.775s] -- Found rosidl_generator_cpp: 3.1.6 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[2.791s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[2.815s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[2.854s] -- Found geometry_msgs: 4.2.4 (/opt/ros/humble/share/geometry_msgs/cmake)
+[2.875s] -- Found rosidl_default_generators: 1.2.0 (/opt/ros/humble/share/rosidl_default_generators/cmake)
+[3.306s] -- Found ament_cmake_ros: 0.10.0 (/opt/ros/humble/share/ament_cmake_ros/cmake)
+[3.717s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[3.837s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[3.855s] -- Found PythonInterp: /usr/bin/python3 (found suitable version "3.10.12", minimum required is "3.6") 
+[3.857s] -- Found python_cmake_module: 0.10.0 (/opt/ros/humble/share/python_cmake_module/cmake)
+[3.877s] -- Found PythonLibs: /usr/lib/x86_64-linux-gnu/libpython3.10.so (found suitable version "3.10.12", minimum required is "3.5") 
+[3.877s] -- Using PYTHON_EXECUTABLE: /usr/bin/python3
+[3.877s] -- Using PYTHON_INCLUDE_DIRS: /usr/include/python3.10
+[3.877s] -- Using PYTHON_LIBRARIES: /usr/lib/x86_64-linux-gnu/libpython3.10.so
+[3.899s] -- Found PythonExtra: .so  
+[3.965s] -- Found ament_lint_auto: 0.12.11 (/opt/ros/humble/share/ament_lint_auto/cmake)
+[3.986s] -- Added test 'lint_cmake' to check CMake code style
+[3.987s] -- Added test 'xmllint' to check XML markup files
+[3.989s] -- Configuring done
+[4.010s] -- Generating done
+[4.018s] -- Build files have been written to: /home/xyg/ros2_ws/src/build/rosario_path
+[4.024s] Invoked command in '/home/xyg/ros2_ws/src/build/rosario_path' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/xyg/rosario_ws/install/puzzlebot_localisation:/home/xyg/rosario_ws/install/puzzlebot_control:/home/xyg/rosario_ws/install/open_cv_examples:/home/xyg/rosario_ws/install/line_follower_ROSario:/home/xyg/rosario_ws/install/close_loop_traffic_nav_ROSario:/home/xyg/rosario_ws/install/close_loop_control_ROSario:/home/xyg/rosario_ws/install/challenge2_ROSario:/home/xyg/rosario_ws/install/autonomousDriving_ROSario:/home/xyg/rosario_ws/install/actividadR2_ROSario:/opt/ros/humble /usr/bin/cmake /home/xyg/ros2_ws/src/rosario_path -DCMAKE_INSTALL_PREFIX=/home/xyg/ros2_ws/src/install/rosario_path
+[4.025s] Invoking command in '/home/xyg/ros2_ws/src/build/rosario_path': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/xyg/rosario_ws/install/puzzlebot_localisation:/home/xyg/rosario_ws/install/puzzlebot_control:/home/xyg/rosario_ws/install/open_cv_examples:/home/xyg/rosario_ws/install/line_follower_ROSario:/home/xyg/rosario_ws/install/close_loop_traffic_nav_ROSario:/home/xyg/rosario_ws/install/close_loop_control_ROSario:/home/xyg/rosario_ws/install/challenge2_ROSario:/home/xyg/rosario_ws/install/autonomousDriving_ROSario:/home/xyg/rosario_ws/install/actividadR2_ROSario:/opt/ros/humble /usr/bin/cmake --build /home/xyg/ros2_ws/src/build/rosario_path -- -j12 -l12
+[4.053s] [  3%] [34m[1mGenerating C code for ROS interfaces[0m
+[4.062s] [  6%] [34m[1mGenerating C++ code for ROS interfaces[0m
+[4.065s] [  6%] Built target ament_cmake_python_copy_rosario_path
+[4.236s] Traceback (most recent call last):
+[4.236s]   File "/home/xyg/ros2_ws/src/build/rosario_path/ament_cmake_python/rosario_path/setup.py", line 1, in <module>
+[4.236s] Traceback (most recent call last):
+[4.236s]   File "/opt/ros/humble/share/rosidl_generator_cpp/cmake/../../../lib/rosidl_generator_cpp/rosidl_generator_cpp", line 38, in <module>
+[4.236s]     from setuptools import find_packages
+[4.236s]   File "/usr/lib/python3/dist-packages/setuptools/__init__.py", line 242, in <module>
+[4.236s]     sys.exit(main())
+[4.236s]   File "/opt/ros/humble/share/rosidl_generator_cpp/cmake/../../../lib/rosidl_generator_cpp/rosidl_generator_cpp", line 34, in main
+[4.236s]     generate_cpp(args.generator_arguments_file)
+[4.236s]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rosidl_generator_cpp/__init__.py", line 39, in generate_cpp
+[4.236s]     return generate_files(
+[4.237s]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rosidl_cmake/__init__.py", line 87, in generate_files
+[4.237s]     expand_template(
+[4.237s]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rosidl_cmake/__init__.py", line 149, in expand_template
+[4.237s]     interpreter.string(template_content, template_path, locals=data)
+[4.237s]   File "/usr/lib/python3/dist-packages/em.py", line 2391, in string
+[4.237s] gmake[2]: *** [CMakeFiles/rosario_path__rosidl_generator_c.dir/build.make:208: CMakeFiles/rosario_path__rosidl_generator_c.dir/depend] Interrupción
+[4.237s] gmake[2]: *** Se borra el archivo 'rosidl_generator_cpp/rosario_path/msg/rosario_path.hpp'
+[4.237s]     monkey.patch_all()
+[4.237s]   File "/usr/lib/python3/dist-packages/setuptools/monkey.py", line 99, in patch_all
+[4.237s] gmake[1]: *** [CMakeFiles/Makefile2:212: CMakeFiles/rosario_path__rosidl_generator_c.dir/all] Interrupción
+[4.237s]     patch_for_msvc_specialized_compiler()
+[4.237s]   File "/usr/lib/python3/dist-packages/setuptools/monkey.py", line 136, in patch_for_msvc_specialized_compiler
+[4.237s]     msvc = import_module('setuptools.msvc')
+[4.237s]   File "/usr/lib/python3.10/importlib/__init__.py", line 126, in import_module
+[4.237s]     return _bootstrap._gcd_import(name[level:], package, level)
+[4.237s]   File "/usr/lib/python3/dist-packages/setuptools/msvc.py", line 22, in <module>
+[4.237s]     self.safe(scanner, True, locals)
+[4.237s]   File "/usr/lib/python3/dist-packages/em.py", line 2401, in safe
+[4.237s]     import json
+[4.237s]   File "/usr/lib/python3.10/json/__init__.py", line 107, in <module>
+[4.237s]     from .encoder import JSONEncoder
+[4.237s]   File "<frozen importlib._bootstrap>", line 1024, in _find_and_load
+[4.237s]     self.parse(scanner, locals)
+[4.237s]   File "/usr/lib/python3/dist-packages/em.py", line 2421, in parse
+[4.238s]   File "<frozen importlib._bootstrap>", line 170, in __enter__
+[4.238s]   File "<frozen importlib._bootstrap>", line 196, in _get_module_lock
+[4.238s]   File "<frozen importlib._bootstrap>", line 72, in __init__
+[4.238s] KeyboardInterrupt
+[4.238s]     token.run(self, locals)
+[4.238s]   File "/usr/lib/python3/dist-packages/em.py", line 1547, in run
+[4.238s]     self.subrun(info[0][1], interpreter, locals)
+[4.238s]   File "/usr/lib/python3/dist-packages/em.py", line 1631, in subrun
+[4.238s]     token.run(interpreter, locals)
+[4.238s]   File "/usr/lib/python3/dist-packages/em.py", line 1425, in run
+[4.238s]     interpreter.execute(self.code, locals)
+[4.238s]   File "/usr/lib/python3/dist-packages/em.py", line 2596, in execute
+[4.238s]     _exec(statements, self.globals, locals)
+[4.238s]   File "<string>", line 2, in <module>
+[4.238s]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rosidl_cmake/__init__.py", line 198, in _expand_template
+[4.238s]     interpreter.string(content, str(template_path), kwargs)
+[4.238s]   File "/usr/lib/python3/dist-packages/em.py", line 2391, in string
+[4.238s]     self.safe(scanner, True, locals)
+[4.238s]   File "/usr/lib/python3/dist-packages/em.py", line 2401, in safe
+[4.238s]     self.parse(scanner, locals)
+[4.238s]   File "/usr/lib/python3/dist-packages/em.py", line 2417, in parse
+[4.238s]     token = scanner.one()
+[4.238s]   File "/usr/lib/python3/dist-packages/em.py", line 1984, in one
+[4.239s]     token.scan(self)
+[4.239s]   File "/usr/lib/python3/dist-packages/em.py", line 1421, in scan
+[4.239s]     i = scanner.complex('{', '}', 0)
+[4.239s]   File "/usr/lib/python3/dist-packages/em.py", line 1893, in complex
+[4.239s]     newQuote = self.check(i, quote)
+[4.239s]   File "/usr/lib/python3/dist-packages/em.py", line 1768, in check
+[4.239s]     if len(self) - i < 3:
+[4.239s]   File "/usr/lib/python3/dist-packages/em.py", line 1680, in __len__
+[4.239s]     def __len__(self): return len(self.buffer) - self.pointer
+[4.239s] KeyboardInterrupt
+[4.245s] Exception ignored in: <function Interpreter.__del__ at 0x7b5fd1448940>
+[4.245s] Traceback (most recent call last):
+[4.245s]   File "/usr/lib/python3/dist-packages/em.py", line 2094, in __del__
+[4.245s]   File "/usr/lib/python3/dist-packages/em.py", line 2157, in shutdown
+[4.245s]   File "/usr/lib/python3/dist-packages/em.py", line 2647, in finalize
+[4.245s]   File "/usr/lib/python3/dist-packages/em.py", line 2200, in push
+[4.245s] AttributeError: '_io.TextIOWrapper' object has no attribute 'push'
+[4.251s] gmake[2]: *** [CMakeFiles/rosario_path__cpp.dir/build.make:155: rosidl_generator_cpp/rosario_path/msg/rosario_path.hpp] Interrupción
+[4.251s] gmake[1]: *** [CMakeFiles/Makefile2:265: CMakeFiles/rosario_path__cpp.dir/all] Interrupción
+[4.251s] gmake[2]: *** [CMakeFiles/ament_cmake_python_build_rosario_path_egg.dir/build.make:70: CMakeFiles/ament_cmake_python_build_rosario_path_egg] Interrupción
+[4.251s] gmake[1]: *** [CMakeFiles/Makefile2:447: CMakeFiles/ament_cmake_python_build_rosario_path_egg.dir/all] Interrupción
+[4.252s] gmake: *** [Makefile:146: all] Interrupción

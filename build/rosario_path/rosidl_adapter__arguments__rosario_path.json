@@ -1,0 +1,6 @@
+{
+  "package_name": "rosario_path",
+  "non_idl_tuples": [
+    "/home/xyg/ros2_ws/src/rosario_path:msg/RosarioPath.msg"
+  ]
+}

@@ -1,0 +1,42 @@
+[2.132s] Invoking command in '/home/xyg/ros2_ws/src/puzzlebot_control': PYTHONPATH=/home/xyg/ros2_ws/src/build/puzzlebot_control/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/xyg/ros2_ws/src/install/puzzlebot_control/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../build/puzzlebot_control build --build-base /home/xyg/ros2_ws/src/build/puzzlebot_control/build install --record /home/xyg/ros2_ws/src/build/puzzlebot_control/install.log --single-version-externally-managed install_data
+[2.515s] running egg_info
+[2.515s] creating ../build/puzzlebot_control/puzzlebot_control.egg-info
+[2.515s] writing ../build/puzzlebot_control/puzzlebot_control.egg-info/PKG-INFO
+[2.518s] writing dependency_links to ../build/puzzlebot_control/puzzlebot_control.egg-info/dependency_links.txt
+[2.519s] writing entry points to ../build/puzzlebot_control/puzzlebot_control.egg-info/entry_points.txt
+[2.520s] writing requirements to ../build/puzzlebot_control/puzzlebot_control.egg-info/requires.txt
+[2.520s] writing top-level names to ../build/puzzlebot_control/puzzlebot_control.egg-info/top_level.txt
+[2.520s] writing manifest file '../build/puzzlebot_control/puzzlebot_control.egg-info/SOURCES.txt'
+[2.520s] reading manifest file '../build/puzzlebot_control/puzzlebot_control.egg-info/SOURCES.txt'
+[2.520s] adding license file 'LICENSE'
+[2.520s] writing manifest file '../build/puzzlebot_control/puzzlebot_control.egg-info/SOURCES.txt'
+[2.520s] running build
+[2.520s] running build_py
+[2.520s] creating /home/xyg/ros2_ws/src/build/puzzlebot_control/build
+[2.522s] creating /home/xyg/ros2_ws/src/build/puzzlebot_control/build/lib
+[2.522s] creating /home/xyg/ros2_ws/src/build/puzzlebot_control/build/lib/puzzlebot_control
+[2.522s] copying puzzlebot_control/__init__.py -> /home/xyg/ros2_ws/src/build/puzzlebot_control/build/lib/puzzlebot_control
+[2.523s] copying puzzlebot_control/open_loop_ctrl.py -> /home/xyg/ros2_ws/src/build/puzzlebot_control/build/lib/puzzlebot_control
+[2.523s] running install
+[2.523s] running install_lib
+[2.523s] creating /home/xyg/ros2_ws/src/install/puzzlebot_control/lib/python3.10/site-packages/puzzlebot_control
+[2.523s] copying /home/xyg/ros2_ws/src/build/puzzlebot_control/build/lib/puzzlebot_control/__init__.py -> /home/xyg/ros2_ws/src/install/puzzlebot_control/lib/python3.10/site-packages/puzzlebot_control
+[2.523s] copying /home/xyg/ros2_ws/src/build/puzzlebot_control/build/lib/puzzlebot_control/open_loop_ctrl.py -> /home/xyg/ros2_ws/src/install/puzzlebot_control/lib/python3.10/site-packages/puzzlebot_control
+[2.523s] byte-compiling /home/xyg/ros2_ws/src/install/puzzlebot_control/lib/python3.10/site-packages/puzzlebot_control/__init__.py to __init__.cpython-310.pyc
+[2.523s] byte-compiling /home/xyg/ros2_ws/src/install/puzzlebot_control/lib/python3.10/site-packages/puzzlebot_control/open_loop_ctrl.py to open_loop_ctrl.cpython-310.pyc
+[2.525s] running install_data
+[2.525s] creating /home/xyg/ros2_ws/src/install/puzzlebot_control/share/ament_index
+[2.525s] creating /home/xyg/ros2_ws/src/install/puzzlebot_control/share/ament_index/resource_index
+[2.525s] creating /home/xyg/ros2_ws/src/install/puzzlebot_control/share/ament_index/resource_index/packages
+[2.525s] copying resource/puzzlebot_control -> /home/xyg/ros2_ws/src/install/puzzlebot_control/share/ament_index/resource_index/packages
+[2.525s] copying package.xml -> /home/xyg/ros2_ws/src/install/puzzlebot_control/share/puzzlebot_control
+[2.528s] creating /home/xyg/ros2_ws/src/install/puzzlebot_control/share/puzzlebot_control/launch
+[2.528s] copying launch/open_loop_ctrl_launch.py -> /home/xyg/ros2_ws/src/install/puzzlebot_control/share/puzzlebot_control/launch
+[2.529s] creating /home/xyg/ros2_ws/src/install/puzzlebot_control/share/puzzlebot_control/config
+[2.529s] creating /home/xyg/ros2_ws/src/install/puzzlebot_control/share/puzzlebot_control/rviz
+[2.529s] running install_egg_info
+[2.529s] Copying ../build/puzzlebot_control/puzzlebot_control.egg-info to /home/xyg/ros2_ws/src/install/puzzlebot_control/lib/python3.10/site-packages/puzzlebot_control-0.0.0-py3.10.egg-info
+[2.529s] running install_scripts
+[2.561s] Installing open_loop_ctrl script to /home/xyg/ros2_ws/src/install/puzzlebot_control/lib/puzzlebot_control
+[2.562s] writing list of installed files to '/home/xyg/ros2_ws/src/build/puzzlebot_control/install.log'
+[2.617s] Invoked command in '/home/xyg/ros2_ws/src/puzzlebot_control' returned '0': PYTHONPATH=/home/xyg/ros2_ws/src/build/puzzlebot_control/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/xyg/ros2_ws/src/install/puzzlebot_control/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../build/puzzlebot_control build --build-base /home/xyg/ros2_ws/src/build/puzzlebot_control/build install --record /home/xyg/ros2_ws/src/build/puzzlebot_control/install.log --single-version-externally-managed install_data

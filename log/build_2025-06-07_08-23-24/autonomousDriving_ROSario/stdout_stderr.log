@@ -1,0 +1,65 @@
+running egg_info
+creating ../build/autonomousDriving_ROSario/autonomousDriving_ROSario.egg-info
+writing ../build/autonomousDriving_ROSario/autonomousDriving_ROSario.egg-info/PKG-INFO
+writing dependency_links to ../build/autonomousDriving_ROSario/autonomousDriving_ROSario.egg-info/dependency_links.txt
+writing entry points to ../build/autonomousDriving_ROSario/autonomousDriving_ROSario.egg-info/entry_points.txt
+writing requirements to ../build/autonomousDriving_ROSario/autonomousDriving_ROSario.egg-info/requires.txt
+writing top-level names to ../build/autonomousDriving_ROSario/autonomousDriving_ROSario.egg-info/top_level.txt
+writing manifest file '../build/autonomousDriving_ROSario/autonomousDriving_ROSario.egg-info/SOURCES.txt'
+reading manifest file '../build/autonomousDriving_ROSario/autonomousDriving_ROSario.egg-info/SOURCES.txt'
+adding license file 'LICENSE'
+writing manifest file '../build/autonomousDriving_ROSario/autonomousDriving_ROSario.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build
+creating /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib
+creating /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib/autonomousDriving_ROSario
+copying autonomousDriving_ROSario/__init__.py -> /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib/autonomousDriving_ROSario
+copying autonomousDriving_ROSario/controller_ROSario.py -> /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib/autonomousDriving_ROSario
+copying autonomousDriving_ROSario/trafficLightDetector_ROSario.py -> /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib/autonomousDriving_ROSario
+copying autonomousDriving_ROSario/yolo_capImages.py -> /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib/autonomousDriving_ROSario
+copying autonomousDriving_ROSario/frames_pc_publisher.py -> /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib/autonomousDriving_ROSario
+copying autonomousDriving_ROSario/yolo_controller_bridge.py -> /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib/autonomousDriving_ROSario
+copying autonomousDriving_ROSario/lineDetector_ROSario.py -> /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib/autonomousDriving_ROSario
+copying autonomousDriving_ROSario/yolov8_recognition.py -> /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib/autonomousDriving_ROSario
+running install
+running install_lib
+creating /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario
+copying /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib/autonomousDriving_ROSario/__init__.py -> /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario
+copying /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib/autonomousDriving_ROSario/controller_ROSario.py -> /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario
+copying /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib/autonomousDriving_ROSario/trafficLightDetector_ROSario.py -> /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario
+copying /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib/autonomousDriving_ROSario/yolo_capImages.py -> /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario
+copying /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib/autonomousDriving_ROSario/frames_pc_publisher.py -> /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario
+copying /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib/autonomousDriving_ROSario/yolo_controller_bridge.py -> /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario
+copying /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib/autonomousDriving_ROSario/lineDetector_ROSario.py -> /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario
+copying /home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/build/lib/autonomousDriving_ROSario/yolov8_recognition.py -> /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario
+byte-compiling /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario/__init__.py to __init__.cpython-310.pyc
+byte-compiling /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario/controller_ROSario.py to controller_ROSario.cpython-310.pyc
+byte-compiling /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario/trafficLightDetector_ROSario.py to trafficLightDetector_ROSario.cpython-310.pyc
+byte-compiling /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario/yolo_capImages.py to yolo_capImages.cpython-310.pyc
+byte-compiling /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario/frames_pc_publisher.py to frames_pc_publisher.cpython-310.pyc
+byte-compiling /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario/yolo_controller_bridge.py to yolo_controller_bridge.cpython-310.pyc
+byte-compiling /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario/lineDetector_ROSario.py to lineDetector_ROSario.cpython-310.pyc
+byte-compiling /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario/yolov8_recognition.py to yolov8_recognition.cpython-310.pyc
+running install_data
+creating /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/share/ament_index
+creating /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/share/ament_index/resource_index
+creating /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/share/ament_index/resource_index/packages
+copying resource/autonomousDriving_ROSario -> /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/share/ament_index/resource_index/packages
+copying package.xml -> /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/share/autonomousDriving_ROSario
+creating /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/share/autonomousDriving_ROSario/launch
+copying launch/yoloNodes_launch.py -> /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/share/autonomousDriving_ROSario/launch
+copying launch/autonomousDriving_ROSario_launch.py -> /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/share/autonomousDriving_ROSario/launch
+copying launch/yoloTests_launch.py -> /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/share/autonomousDriving_ROSario/launch
+copying launch/capImages_launch.py -> /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/share/autonomousDriving_ROSario/launch
+running install_egg_info
+Copying ../build/autonomousDriving_ROSario/autonomousDriving_ROSario.egg-info to /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/python3.10/site-packages/autonomousDriving_ROSario-0.0.0-py3.10.egg-info
+running install_scripts
+Installing controller_ROSario script to /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/autonomousDriving_ROSario
+Installing frames_pc_publisher script to /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/autonomousDriving_ROSario
+Installing lineDetector_ROSario script to /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/autonomousDriving_ROSario
+Installing trafficLightDetector_ROSario script to /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/autonomousDriving_ROSario
+Installing yolo_capImages script to /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/autonomousDriving_ROSario
+Installing yolo_controller_bridge script to /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/autonomousDriving_ROSario
+Installing yolov8_recognition script to /home/xyg/ros2_ws/src/install/autonomousDriving_ROSario/lib/autonomousDriving_ROSario
+writing list of installed files to '/home/xyg/ros2_ws/src/build/autonomousDriving_ROSario/install.log'

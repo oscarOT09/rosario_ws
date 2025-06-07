@@ -1,0 +1,4 @@
+[console_scripts]
+open_control_node = challenge2_ROSario.open_control_node:main
+path_ROSario = challenge2_ROSario.path_ROSario:main
+

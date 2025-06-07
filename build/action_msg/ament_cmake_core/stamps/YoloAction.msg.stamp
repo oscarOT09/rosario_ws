@@ -1,0 +1,9 @@
+bool rojo
+bool amarillo
+bool verde
+bool adelante
+bool girar_l
+bool girar_r
+bool trabajo
+bool ceder
+bool alto

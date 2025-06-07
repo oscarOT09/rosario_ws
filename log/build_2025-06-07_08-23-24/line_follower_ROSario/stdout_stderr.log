@@ -1,0 +1,55 @@
+running egg_info
+creating ../build/line_follower_ROSario/line_follower_ROSario.egg-info
+writing ../build/line_follower_ROSario/line_follower_ROSario.egg-info/PKG-INFO
+writing dependency_links to ../build/line_follower_ROSario/line_follower_ROSario.egg-info/dependency_links.txt
+writing entry points to ../build/line_follower_ROSario/line_follower_ROSario.egg-info/entry_points.txt
+writing requirements to ../build/line_follower_ROSario/line_follower_ROSario.egg-info/requires.txt
+writing top-level names to ../build/line_follower_ROSario/line_follower_ROSario.egg-info/top_level.txt
+writing manifest file '../build/line_follower_ROSario/line_follower_ROSario.egg-info/SOURCES.txt'
+reading manifest file '../build/line_follower_ROSario/line_follower_ROSario.egg-info/SOURCES.txt'
+adding license file 'LICENSE'
+writing manifest file '../build/line_follower_ROSario/line_follower_ROSario.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/xyg/ros2_ws/src/build/line_follower_ROSario/build
+creating /home/xyg/ros2_ws/src/build/line_follower_ROSario/build/lib
+creating /home/xyg/ros2_ws/src/build/line_follower_ROSario/build/lib/line_follower_ROSario
+copying line_follower_ROSario/camera_recorder.py -> /home/xyg/ros2_ws/src/build/line_follower_ROSario/build/lib/line_follower_ROSario
+copying line_follower_ROSario/__init__.py -> /home/xyg/ros2_ws/src/build/line_follower_ROSario/build/lib/line_follower_ROSario
+copying line_follower_ROSario/controller_ROSario.py -> /home/xyg/ros2_ws/src/build/line_follower_ROSario/build/lib/line_follower_ROSario
+copying line_follower_ROSario/localisation_ROSario.py -> /home/xyg/ros2_ws/src/build/line_follower_ROSario/build/lib/line_follower_ROSario
+copying line_follower_ROSario/trafficLightDetector_ROSario.py -> /home/xyg/ros2_ws/src/build/line_follower_ROSario/build/lib/line_follower_ROSario
+copying line_follower_ROSario/lineDetector_ROSario.py -> /home/xyg/ros2_ws/src/build/line_follower_ROSario/build/lib/line_follower_ROSario
+running install
+running install_lib
+creating /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/python3.10/site-packages/line_follower_ROSario
+copying /home/xyg/ros2_ws/src/build/line_follower_ROSario/build/lib/line_follower_ROSario/camera_recorder.py -> /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/python3.10/site-packages/line_follower_ROSario
+copying /home/xyg/ros2_ws/src/build/line_follower_ROSario/build/lib/line_follower_ROSario/__init__.py -> /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/python3.10/site-packages/line_follower_ROSario
+copying /home/xyg/ros2_ws/src/build/line_follower_ROSario/build/lib/line_follower_ROSario/controller_ROSario.py -> /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/python3.10/site-packages/line_follower_ROSario
+copying /home/xyg/ros2_ws/src/build/line_follower_ROSario/build/lib/line_follower_ROSario/localisation_ROSario.py -> /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/python3.10/site-packages/line_follower_ROSario
+copying /home/xyg/ros2_ws/src/build/line_follower_ROSario/build/lib/line_follower_ROSario/trafficLightDetector_ROSario.py -> /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/python3.10/site-packages/line_follower_ROSario
+copying /home/xyg/ros2_ws/src/build/line_follower_ROSario/build/lib/line_follower_ROSario/lineDetector_ROSario.py -> /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/python3.10/site-packages/line_follower_ROSario
+byte-compiling /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/python3.10/site-packages/line_follower_ROSario/camera_recorder.py to camera_recorder.cpython-310.pyc
+byte-compiling /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/python3.10/site-packages/line_follower_ROSario/__init__.py to __init__.cpython-310.pyc
+byte-compiling /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/python3.10/site-packages/line_follower_ROSario/controller_ROSario.py to controller_ROSario.cpython-310.pyc
+byte-compiling /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/python3.10/site-packages/line_follower_ROSario/localisation_ROSario.py to localisation_ROSario.cpython-310.pyc
+byte-compiling /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/python3.10/site-packages/line_follower_ROSario/trafficLightDetector_ROSario.py to trafficLightDetector_ROSario.cpython-310.pyc
+byte-compiling /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/python3.10/site-packages/line_follower_ROSario/lineDetector_ROSario.py to lineDetector_ROSario.cpython-310.pyc
+running install_data
+creating /home/xyg/ros2_ws/src/install/line_follower_ROSario/share/ament_index
+creating /home/xyg/ros2_ws/src/install/line_follower_ROSario/share/ament_index/resource_index
+creating /home/xyg/ros2_ws/src/install/line_follower_ROSario/share/ament_index/resource_index/packages
+copying resource/line_follower_ROSario -> /home/xyg/ros2_ws/src/install/line_follower_ROSario/share/ament_index/resource_index/packages
+copying package.xml -> /home/xyg/ros2_ws/src/install/line_follower_ROSario/share/line_follower_ROSario
+creating /home/xyg/ros2_ws/src/install/line_follower_ROSario/share/line_follower_ROSario/launch
+copying launch/videoRec_launch.py -> /home/xyg/ros2_ws/src/install/line_follower_ROSario/share/line_follower_ROSario/launch
+copying launch/line_follower_ROSario_launch.py -> /home/xyg/ros2_ws/src/install/line_follower_ROSario/share/line_follower_ROSario/launch
+running install_egg_info
+Copying ../build/line_follower_ROSario/line_follower_ROSario.egg-info to /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/python3.10/site-packages/line_follower_ROSario-0.0.0-py3.10.egg-info
+running install_scripts
+Installing camera_recorder script to /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/line_follower_ROSario
+Installing controller_ROSario script to /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/line_follower_ROSario
+Installing lineDetector_ROSario script to /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/line_follower_ROSario
+Installing localisation_ROSario script to /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/line_follower_ROSario
+Installing trafficLightDetector_ROSario script to /home/xyg/ros2_ws/src/install/line_follower_ROSario/lib/line_follower_ROSario
+writing list of installed files to '/home/xyg/ros2_ws/src/build/line_follower_ROSario/install.log'

@@ -1,5 +1,7 @@
 import rclpy
 from rclpy.node import Node
+
+# Custom Messages
 from yolo_msg.msg import Yolov8Inference, InferenceResult
 from action_msg.msg import YoloAction
 
@@ -7,6 +9,7 @@ class SignalLogger(Node):
     def __init__(self):
         super().__init__('signal_logger')
 
+        # Suscripción al tópico de detecciones YOLO
         self.subscription = self.create_subscription(
             Yolov8Inference,
             '/Yolov8_inference',
@@ -14,46 +17,41 @@ class SignalLogger(Node):
             10
         )
 
+        # Publicador de acciones interpretadas
         self.action_pub = self.create_publisher(
             YoloAction,
             '/action',
             10
         )
 
+        # Parametros Dinamicos
+        self.declare_parameter('min_signal_area', 7500)
+        self.declare_parameter('min_traffic_area', 3500)
+
+        # Frecuencia de publicación en Hz
         self.node_hz = 15.0
         self.timer = self.create_timer(1.0 / self.node_hz, self.timer_callback)
+
+        # Variable que guarda las detecciones más recientes
         self.last_detections = []
 
         self.get_logger().info("Nodo 'signal_logger_node' iniciado...")
 
     def listener_callback(self, msg):
+        # Guardar la lista de objetos detectados del mensaje entrante
         self.last_detections = msg.yolov8_inference
 
     def timer_callback(self):
-        if not self.last_detections:
-            action_msg = YoloAction()
-            action_msg.alto = False
-            action_msg.trabajo = False
-            action_msg.ceder = False
-            action_msg.adelante = False
-            action_msg.girar_r = False
-            action_msg.girar_l = False
-            action_msg.verde = False
-            action_msg.amarillo = False
-            action_msg.rojo = False
+        # Crear mensaje de acción vacío (todo False)
+        action_msg = YoloAction()
 
+        # Si no hay detecciones, publicar mensaje vacío
+        if not self.last_detections:
+            self.get_logger().info("Sin detecciones: enviando acción nula.")
             self.action_pub.publish(action_msg)
-            self.get_logger().info("Sin detecciones: acción 0 enviada")
             return
 
-        # Inicializamos señales
-        traffic_light = 0
-        signal = 0
-        dotted_line = False
-
-        max_signal_area = 0
-        max_traffic_area = 0
-
+        # Mapeo de clases
         SIGNALS = {
             "stop": 1,
             "roadwork_ahead": 2,
@@ -64,56 +62,71 @@ class SignalLogger(Node):
         }
 
         TRAFFIC_LIGHTS = {
-            "trafficLight_green": 1,
-            "trafficLight_yellow": 2,
-            "trafficLight_red": 3,
+            "trafficlight_green": 1,
+            "trafficlight_yellow": 2,
+            "trafficlight_red": 3,
         }
 
+        min_signal_area = self.get_parameter('min_signal_area').get_parameter_value().integer_value
+        min_traffic_area = self.get_parameter('min_traffic_area').get_parameter_value().integer_value
+
+        self.add_on_set_parameters_callback(self.parameter_callback)
+
+
+        max_signal_area = 0
+        selected_signal = 0
+
+        max_traffic_area = 0
+        selected_traffic = 0
+
         for det in self.last_detections:
+            cls = det.class_name.lower()
             w = det.right - det.left
             h = det.bottom - det.top
             area = w * h
-            cls = det.class_name.lower()
 
             if cls in SIGNALS:
                 if area > max_signal_area:
-                    signal = SIGNALS[cls]
                     max_signal_area = area
-
+                    selected_signal = SIGNALS[cls]
             elif cls in TRAFFIC_LIGHTS:
                 if area > max_traffic_area:
-                    traffic_light = TRAFFIC_LIGHTS[cls]
                     max_traffic_area = area
+                    selected_traffic = TRAFFIC_LIGHTS[cls]
 
-            elif "line" in cls or "dotted" in cls:
-                dotted_line = True
+        # Aplicar los filtros por área mínima
+        final_signal = selected_signal if max_signal_area >= min_signal_area else 0
+        final_traffic = selected_traffic if max_traffic_area >= min_traffic_area else 0
 
-
-        # Lógica de acción binaria
-        alto = signal == 1
-        trabajo = signal == 2
-        ceder = signal == 3
-        adelante = signal == 4
-        girar_r = signal == 5
-        girar_l = signal == 6
-        verde = traffic_light == 1
-        amarillo = traffic_light == 2
-        rojo = traffic_light == 3
-        if traffic_light != 0:
-            semaforo = True
-
-        action_msg = YoloAction()
-        action_msg.alto = alto
-        action_msg.trabajo = trabajo
-        action_msg.ceder = ceder
-        action_msg.adelante = adelante
-        action_msg.girar_r = girar_r
-        action_msg.girar_l = girar_l
-        action_msg.verde = verde
-        action_msg.amarillo = amarillo
-        action_msg.rojo = rojo
+        # Llenar el mensaje de acción según los resultados
+        action_msg.alto = final_signal == 1
+        action_msg.trabajo = final_signal == 2
+        action_msg.ceder = final_signal == 3
+        action_msg.adelante = final_signal == 4
+        action_msg.girar_r = final_signal == 5
+        action_msg.girar_l = final_signal == 6
+        action_msg.verde = final_traffic == 1
+        action_msg.amarillo = final_traffic == 2
+        action_msg.rojo = final_traffic == 3
 
         self.action_pub.publish(action_msg)
+
+        # Logs útiles
+        if final_signal:
+            name = list(SIGNALS.keys())[list(SIGNALS.values()).index(final_signal)]
+            self.get_logger().info(f"Señal seleccionada: {name} (área {max_signal_area})")
+        if final_traffic:
+            name = list(TRAFFIC_LIGHTS.keys())[list(TRAFFIC_LIGHTS.values()).index(final_traffic)]
+            self.get_logger().info(f"Semáforo seleccionado: {name} (área {max_traffic_area})")
+
+        # Reiniciar detecciones tras publicarlas (opcional)
+        self.last_detections = []
+
+    def parameter_callback(self, params):
+        for param in params:
+            if param.name in ["min_signal_area", "min_traffic_area"]:
+                self.get_logger().info(f"Parámetro '{param.name}' cambiado a {param.value}")
+        return rclpy.parameter.ParameterEventHandler.Result(successful=True)
 
 def main(args=None):
     rclpy.init(args=args)

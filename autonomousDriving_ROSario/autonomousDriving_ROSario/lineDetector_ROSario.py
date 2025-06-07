@@ -151,7 +151,7 @@ class lineDetector(Node):
         for centroide in midpoint_centroids:
             if centroide:
                 error = centro_x - centroide[0] #centroide[0] - centro_x
-                error_normalizado = error / (frame_width)  # valor entre -1 y 1
+                error_normalizado = error / (frame_width/2)  # valor entre -1 y 1
                 errores_normalizados.append(error_normalizado)
             else:
                 errores_normalizados.append(None)

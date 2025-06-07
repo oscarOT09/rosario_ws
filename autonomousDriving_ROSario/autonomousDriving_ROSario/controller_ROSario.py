@@ -10,9 +10,10 @@ import signal
 from rcl_interfaces.msg import SetParametersResult
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Int32, Float32
+from action_msg.msg import YoloAction
 
 # Definición de la clase
-class OpenLoopCtrl(Node):
+class trafficNavController(Node):
     def __init__(self):
         super().__init__('close_loop_ctrl')
         
@@ -34,18 +35,7 @@ class OpenLoopCtrl(Node):
         # Delta tiempo controladores
         self.dt_pid = 1.0/frecuencia_controlador
 
-        # PID angular
-        self.declare_parameter('kp_ang_rect', 0.0)
-        self.declare_parameter('ki_ang_rect', 0.0)
-        self.declare_parameter('kd_ang_rect', 0.0)
-
-        self.kp_ang_rect = self.get_parameter('kp_ang_rect').value # 1.7
-        self.ki_ang_rect = self.get_parameter('ki_ang_rect').value # 1.2
-        self.kd_ang_rect = self.get_parameter('kd_ang_rect').value # 0.2
-        self.integral_ang_rect = 0.0
-        self.prev_error_ang_rect = 0.0
-
-        # PID lineal
+        # PID
         self.declare_parameter('kp_ang_curv', 0.55)
         self.declare_parameter('ki_ang_curv', 0.001)
         self.declare_parameter('kd_ang_curv', 0.11)
@@ -60,13 +50,12 @@ class OpenLoopCtrl(Node):
         self.declare_parameter('controllers_ready', False)
         self.controllers_ready = self.get_parameter('controllers_ready').value
         
-        # Mensaje de velocidades para el Puzzlebot
-        self.twist = Twist()
         # Velocidad lineal
         self.declare_parameter('linear_speed', 0.049)
         self.linear_speed = self.get_parameter('linear_speed').value # m/s
+        self.speed_efect = self.linear_speed
         # Velocidad angular
-        self.angular_speed = 0.05  # rad/s 
+        self.angular_speed = 0.0  # rad/s 
         self.yellow_speed = 0.0
         self.yellow_flag = False
 
@@ -76,38 +65,41 @@ class OpenLoopCtrl(Node):
         self.color_state = 0
 
         self.error_linea = 0.0
-        #self.curva_linea = False
         self.cont_cam = 0
+
+        self.motion_state = 0
+
+        self.yoloRec_msg = YoloAction()
+
+        ## PUBLICADORES
         # Publicador para el tópico /cmd_vel (comunicación con el Puzzlebot)
         self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
-        self.pid_msg = Float32()
+        # Mensaje de velocidades para el Puzzlebot
+        self.twist = Twist()
+        # Publicador del valor de salida del PID
         self.pid_pub = self.create_publisher(Float32, 'pid_output', 10)
-
+        self.pid_msg = Float32()
+        
+        ## SUSCRIPCIONES
         # Suscriptor para el tópico /pose (comunicación con el nodo Path Generator)
         self.lineDetect_sub = self.create_subscription(Float32, 'line_error', self.lineDetector_callback, 10)
-        # Suscriptor para el tópico /color_id (comunicación con el nodo Color Identification)
-        self.colorID_sub = self.create_subscription(Int32, 'color_id', self.colors_callback, 10)
+        # Suscriptor para el tópico /action (cominucación con identificaciones de YOLO)
+        self.action_sub = self.create_subscription(YoloAction, 'action', self.action_callback, 10)
 
         # Parameter Callback
         self.add_on_set_parameters_callback(self.parameters_callback)
-
+    
+        # Timer de loop principal
         self.controller_timer = self.create_timer(1.0 / frecuencia_controlador, self.control_loop)
 
-        self.get_logger().info('Line Follower Navigation Controller initialized!')
+        self.get_logger().info('Autonomous Navigation Controller initialized!')
         
     def lineDetector_callback(self, msg):
         self.error_linea = msg.data
-    
-    def colors_callback(self, msg):
-        self.new_color = msg.data
-        
-        if (self.prev_color == 0 and self.new_color != 0) or (self.prev_color == 3 and (self.new_color == 2 or self.new_color == 1)) or (self.prev_color == 2 and (self.new_color == 1)) or (self.prev_color == 1 and (self.new_color == 3)):
-            self.color_state = self.new_color
-        else:
-            self.color_state = self.prev_color
-        
-        self.prev_color = self.color_state
-    
+
+    def action_callback(self, msg):
+        self.yoloRec_msg = msg
+
     def parameters_callback(self, params):
         for param in params:
             #system parameters check
@@ -115,31 +107,6 @@ class OpenLoopCtrl(Node):
                 #check if it is negative
                 self.controllers_ready = param.value  # Update internal variable
                 self.get_logger().info(f"controllers_ready updated to {self.controllers_ready}")
-            elif param.name == "kp_ang_rect":
-                #check if it is negative
-                if (param.value < 0.0):
-                    self.get_logger().warn("Invalid kp! It just cannot be negative.")
-                    return SetParametersResult(successful=False, reason="kp cannot be negative")
-                else:
-                    self.kp_ang_rect = param.value  # Update internal variable
-                    self.get_logger().info(f"kp_ang_rect updated to {self.kp_ang_rect}")
-            elif param.name == "ki_ang_rect":
-                #check if it is negative
-                if (param.value < 0.0):
-                    self.get_logger().warn("Invalid ki! It just cannot be negative.")
-                    return SetParametersResult(successful=False, reason="ki cannot be negative")
-                else:
-                    self.ki_ang_rect = param.value  # Update internal variable
-                    self.get_logger().info(f"ki_ang_rect updated to {self.ki_ang_rect}")
-            elif param.name == "kd_ang_rect":
-                #check if it is negative
-                if (param.value < 0.0):
-                    self.get_logger().warn("Invalid kd! It just cannot be negative.")
-                    return SetParametersResult(successful=False, reason="kd cannot be negative")
-                else:
-                    self.kd_ang_rect = param.value  # Update internal variable
-                    self.get_logger().info(f"kd_ang_rect updated to {self.kd_ang_rect}")
-            
             elif param.name == "kp_ang_curv":
                 #check if it is negative
                 if (param.value < 0.0):
@@ -198,57 +165,83 @@ class OpenLoopCtrl(Node):
                     self.get_logger().info(f"init_time updated to {self.init_time}")
 
         return SetParametersResult(successful=True)
-    
+
     def control_loop(self):
         if self.controllers_ready:
-            if self.cont_cam <= self.init_time:
-                self.error_linea = 0.0
-                self.cont_cam += 1
-            pid_output = 0.0
-            self.get_logger().info(f'Error recibido: {self.error_linea} | Color: {self.color_state}')
-            if abs(self.error_linea) > 0.0:            
-                if self.color_state == 0 or self.color_state == 3:
-                    pid_output = self.pid_controller_angular_curv(self.error_linea)
-                    self.angular_speed = self.saturate_with_deadband(pid_output, self.min_ang_vel, self.max_ang_vel)
-                    self.get_logger().info("Siguiendo linea")
-                    linear_speed_loop = self.linear_speed
+            # Verificación de estado
+            self.motion_state = self.decidir_accion()
 
-                elif self.color_state == 2:
-                    if not self.yellow_flag:
-                        self.yellow_speed = self.linear_speed
-                        self.yellow_flag = True
-                    self.yellow_speed *= 0.99
-                    linear_speed_loop = max(0.0, self.yellow_speed)
-                    self.angular_speed = 0.0 #self.saturate_with_deadband(self.pid_controller_angular(self.error_linea), self.min_ang_vel, self.max_ang_vel)
-                    self.get_logger().info("Desacelerando por amarillo")
+            if self.motion_state == 0: # Estado de reposo
+                
+                if self.yoloRec_msg.rojo: # Si se detuvo por semáforo en rojo
+                    self.get_logger().info('Estado de reposo por semaforo rojo')
+                    self.reposo()
+                    return
+                elif self.yoloRec_msg.alto: # Si se detuvo por señal STOP
+                    self.get_logger().info('Estado de reposo por STOP')
+                    self.reposo()
+                    return
+                                
+            elif self.motion_state == 1: # Estado de cruce (Lazo abierto)
+                if not self.yoloRec_msg.verde: # Espera a ver semáforo en verde
+                    self.get_logger().info('Estado de cruce, esperanco semaforo verde...')
+                    self.reposo()
+                    return
+                else:
+                    # Ejectua acción en función de la señal de movimiento
+                    if self.yoloRec_msg.adelante:
+                        self.seguirAdelante()
+                    elif self.yoloRec_msg.girar_l:
+                        self.girarIzquierda()
+                    elif self.yoloRec_msg.girar_r:
+                        self.girarDerecha()
+                    
+                    return 
 
-                elif self.color_state == 1:
-                    linear_speed_loop = 0.0
-                    self.angular_speed = 0.0
-                    self.yellow_flag = False
-                    self.get_logger().info('Detenido por rojo')
+            elif self.motion_state == 2: # Estado de seguimiento de linea con efectos              
+                # Efectos
+                if (self.yoloRec_msg.trabajo or self.yoloRec_msg.ceder):
+                    self.get_logger().info('Estado de seguidor por senial triangular')
+                    self.twist.linear.x = max(self.min_lin_vel, self.linear_speed * 0.9)
 
-                self.twist.linear.x = linear_speed_loop
-                self.twist.angular.z = self.angular_speed
-                self.cmd_vel_pub.publish(self.twist)
-                self.pid_msg.data = pid_output
-                self.pid_pub.publish(self.pid_msg)
-            else:
-                self.twist.linear.x = self.linear_speed
-                self.twist.angular.z = 0.0
+                elif self.yoloRec_msg.amarillo and not self.yoloRec_msg.rojo:
+                    self.get_logger().info('Estado de seguidor por amarillo, esperando semaforo rojo...')    
+                    self.speed_efect *= 0.99
+                    self.twist.linear.x = max(0.0, self.speed_efect)
+                else:
+                    #self.get_logger().info('Estado de seguidor normal')
+                    self.twist.linear.x = self.linear_speed
+                    self.speed_efect = self.linear_speed
+                    
+                self.twist.angular.z = self.seguir_linea()
                 self.cmd_vel_pub.publish(self.twist)
         else:
-            self.cont_cam = 0.0
             self.twist.linear.x = 0.0
             self.twist.angular.z = 0.0
             self.cmd_vel_pub.publish(self.twist)
+
+    def decidir_accion(self):
+        if ((self.yoloRec_msg.rojo or self.yoloRec_msg.amarillo or self.yoloRec_msg.verde) and (self.yoloRec_msg.adelante or self.yoloRec_msg.girar_l or self.yoloRec_msg.girar_r)):
+            motion_state = 1
+        elif (self.yoloRec_msg.rojo or self.yoloRec_msg.alto):
+            motion_state = 0
+        else:
+            motion_state = 2
+
+        return motion_state
     
-    def pid_controller_angular(self, error):
-        self.integral_ang_rect += error * self.dt_pid
-        derivative = (error - self.prev_error_ang_rect) / self.dt_pid
-        output = self.kp_ang_rect * error + self.ki_ang_rect * self.integral_ang_rect + self.kd_ang_rect * derivative
-        self.prev_error_ang_rect = error
-        return output
+    def seguir_linea(self):
+        pid_output = 0.0
+
+        if abs(self.error_linea) > 0.0: 
+            pid_output = self.pid_controller_angular_curv(self.error_linea)
+            angular_velocity = self.saturate_with_deadband(pid_output, self.min_ang_vel, self.max_ang_vel)
+            self.pid_msg.data = pid_output
+            self.pid_pub.publish(self.pid_msg)
+        else:
+            angular_velocity = 0.0
+
+        return angular_velocity
 
     def pid_controller_angular_curv(self, error):
         self.integral_ang_curv += error * self.dt_pid
@@ -269,18 +262,29 @@ class OpenLoopCtrl(Node):
             else:
                 return max(output, -max_val)
     
-    def stop_handler(self, signum, frame):
-        '''Manejo de interrupción por teclado (ctrl + c)'''
-        self.twist.linear.x = 0
-        self.twist.angular.z = 0
+    def girarIzquierda(self):
+        self.get_logger().info("Función de turn_left")
+    
+    def girarDerecha(self):
+        self.get_logger().info("Función de turn_right")
+    
+    def seguirAdelante(self):
+        self.get_logger().info("Función de ahead_only")
+    
+    def reposo(self):
+        self.twist.linear.x = 0.0
+        self.twist.angular.z = 0.0
         self.cmd_vel_pub.publish(self.twist)
+        #self.get_logger().info("Función de reposo")
+    
+    def stop_handler(self, signum, frame):
         self.get_logger().info("Deteniendo nodo por interrupción por teclado...")
         raise SystemExit
 
 # Main
 def main(args=None):
     rclpy.init(args=args)
-    node = OpenLoopCtrl()
+    node = trafficNavController()
     signal.signal(signal.SIGINT, node.stop_handler)
     
     try:

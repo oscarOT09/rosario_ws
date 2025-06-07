@@ -15,7 +15,7 @@ from datetime import datetime
 class YoloInference(Node):
     def __init__(self):
         super().__init__('yolo_node')
-        self.model = YOLO(os.path.expanduser('~/rosario_ws/src/autonomousDriving_ROSario/models/yolov8n_rosario.v5.2.pt')).to('cuda')
+        self.model = YOLO(os.path.expanduser('~/rosario_ws/src/autonomousDriving_ROSario/models/yolov8n_rosario.v6.1.pt')).to('cuda')
         #self.yolo_msg = Yolov8Inference()
         self.img = None
         self.bridge = CvBridge()

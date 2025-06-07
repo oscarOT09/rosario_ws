@@ -17,13 +17,13 @@ class OpenLoopCtrl(Node):
         super().__init__('close_loop_ctrl')
         
         # Muestreo
-        frecuencia_controlador = 30.0
+        frecuencia_controlador = 15.0
 
-        self.declare_parameter('init_time', 60)
+        self.declare_parameter('init_time', 30)
         self.init_time = self.get_parameter('init_time').value
 
         self.declare_parameter('max_ang_vel', 2.5)
-        self.declare_parameter('min_ang_vel', 0.29)
+        self.declare_parameter('min_ang_vel', 0.31)
 
         # Parámetros del robot
         self.max_lin_vel = 0.37
@@ -46,9 +46,9 @@ class OpenLoopCtrl(Node):
         self.prev_error_ang_rect = 0.0
 
         # PID lineal
-        self.declare_parameter('kp_ang_curv', 0.53)
-        self.declare_parameter('ki_ang_curv', 0.005)
-        self.declare_parameter('kd_ang_curv', 0.0025)
+        self.declare_parameter('kp_ang_curv', 0.55)
+        self.declare_parameter('ki_ang_curv', 0.001)
+        self.declare_parameter('kd_ang_curv', 0.11)
 
         self.kp_ang_curv = self.get_parameter('kp_ang_curv').value # 1.2
         self.ki_ang_curv = self.get_parameter('ki_ang_curv').value # 0.5
@@ -63,7 +63,7 @@ class OpenLoopCtrl(Node):
         # Mensaje de velocidades para el Puzzlebot
         self.twist = Twist()
         # Velocidad lineal
-        self.declare_parameter('linear_speed', 0.0475)
+        self.declare_parameter('linear_speed', 0.049)
         self.linear_speed = self.get_parameter('linear_speed').value # m/s
         # Velocidad angular
         self.angular_speed = 0.05  # rad/s 

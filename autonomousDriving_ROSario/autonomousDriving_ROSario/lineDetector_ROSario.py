@@ -26,7 +26,7 @@ class lineDetector(Node):
         self.declare_parameter('dilate_kernel', 5)
         self.declare_parameter('iter_erode', 4)
         self.declare_parameter('iter_dilate', 2)
-        self.declare_parameter('params_ready', True)
+        self.declare_parameter('params_ready', False)
 
         self.cut_por = self.get_parameter('cut_por').value
         self.mid_por = self.get_parameter('mid_por').value
@@ -62,7 +62,7 @@ class lineDetector(Node):
             10
         )
 
-        self.frecuencia_loop = 30.0
+        self.frecuencia_loop = 15.0
         self.controller_timer = self.create_timer(1.0 / self.frecuencia_loop, self.main_loop)
 
         self.get_logger().info('Line Detector initialized!')

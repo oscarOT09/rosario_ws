@@ -27,7 +27,6 @@ setup(
             'yolo_capImages = autonomousDriving_ROSario.yolo_capImages:main',
             'controller_ROSario = autonomousDriving_ROSario.controller_ROSario:main',
             'lineDetector_ROSario = autonomousDriving_ROSario.lineDetector_ROSario:main',
-            'trafficLightDetector_ROSario = autonomousDriving_ROSario.trafficLightDetector_ROSario:main',
             'yolov8_recognition = autonomousDriving_ROSario.yolov8_recognition:main',
             'yolo_controller_bridge = autonomousDriving_ROSario.yolo_controller_bridge:main',
             'frames_pc_publisher = autonomousDriving_ROSario.frames_pc_publisher:main'

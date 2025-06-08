@@ -1,3 +1,7 @@
+# Nodo puente YOLO-Controlador | Final-Term Challenge
+# Equipo ROSario
+
+# Importaciones necesarias
 import rclpy
 from rclpy.node import Node
 

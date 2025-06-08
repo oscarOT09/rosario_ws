@@ -1,3 +1,7 @@
+# Nodo camara para YOLO | Final-Term Challenge
+# Equipo ROSario
+
+# Importaciones necesarias
 import rclpy
 import cv2 as cv
 import signal
@@ -13,6 +17,7 @@ class capImages(Node):
     def __init__(self):
         super().__init__('capImages_node')
 
+        # Creacion de Variables iniciales
         self.img = None
         self.bridge = CvBridge()
         self.take_photo = False
@@ -20,6 +25,7 @@ class capImages(Node):
         self.yolo_class = ''
         self.yolo_class_folder = ''
 
+        # Creacion de la subscripcion
         self.subscription = self.create_subscription(
             Image,
             '/video_source/raw',
@@ -27,6 +33,7 @@ class capImages(Node):
             10
         )
 
+        # Declaracion de parametros dinamicos
         self.declare_parameter('take_photo', False)
         self.declare_parameter('yolo_class', '')
 
@@ -35,35 +42,43 @@ class capImages(Node):
         self.timer = self.create_timer(0.1, self.main_loop)
 
     def camera_callback(self, msg):
+        # Callback de obtencion de frame
         try:
             self.img = self.bridge.imgmsg_to_cv2(msg, "bgr8")
         except Exception as e:
             self.get_logger().error(f'Error de conversión: {e}')
 
     def main_loop(self):
+        # Espera a recibir frame
         if self.img is None:
             self.get_logger().info('Esperando imagen...')
             return
 
+        # Inicializar parametros
         self.take_photo = self.get_parameter('take_photo').get_parameter_value().bool_value
         self.yolo_class = self.get_parameter('yolo_class').get_parameter_value().string_value
 
+        # Reinicio del boton 
         if self.take_photo:
             self.take_photo_callback()
             self.set_parameters([Parameter('take_photo', Parameter.Type.BOOL, False)])
 
     def take_photo_callback(self):
+        # En caso de no especificar la carpeta
         if not self.yolo_class:
             self.get_logger().error('No yolo_class specified')
             return
 
+        # Guardar en carpeta con el nombre o crearla
         self.yolo_class_folder = f'./yolo_images/{self.yolo_class}'
         if not os.path.exists(self.yolo_class_folder):
             os.makedirs(self.yolo_class_folder)
 
+        # Mantener la indexacion que tienen las fotos
         existing_images = [f for f in os.listdir(self.yolo_class_folder) if f.startswith(self.yolo_class) and f.endswith('.jpg')]
         self.photo_counter = len(existing_images)
 
+        # Guardado de la imagen
         filename = f'{self.yolo_class_folder}/{self.yolo_class}_{self.photo_counter}.jpg'
         flip_img = cv.flip(self.img, 0)
         flip_img = cv.flip(flip_img, 1)
@@ -72,7 +87,7 @@ class capImages(Node):
         self.photo_counter += 1
 
     def stop_handler(self, signum, frame):
-        '''Manejo de interrupción por teclado (ctrl + c)'''
+        # Manejo de interrupción por teclado (ctrl + c)
         self.get_logger().info("Deteniendo nodo por interrupción por teclado...")
         raise SystemExit
 

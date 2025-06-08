@@ -1,3 +1,7 @@
+# Nodo puente entre Jetson - YOLO | Final-Term Challenge
+# Equipo ROSario
+
+# Importaciones necesarias
 import rclpy
 import cv2
 
@@ -10,25 +14,30 @@ class framesPublisher(Node):
     def __init__(self):
         super().__init__('frames_publisher_node')
 
+        # Variables para la imagen
         self.img = None
         self.bridge = CvBridge()
 
         self.valid_img = False
 
+        # Subcripciones y Publicaciones
         self.sub = self.create_subscription(Image, '/video_source/raw', self.camera_callback, 10)
         self.frame_pub = self.create_publisher(Image, '/jetson_frame', 10)
         
+        # Frecuencia del Nodo
         self.node_hz = 15.0
         timer_period = 1.0/self.node_hz
         self.timer = self.create_timer(timer_period, self.frames2pc_pub)
 
     def camera_callback(self, msg):
+        # Obtencion del frame
         try:
             self.img = self.bridge.imgmsg_to_cv2(msg, "bgr8")
         except:
             self.get_logger().info('Failed to get an image')
 
     def frames2pc_pub(self):
+        # Publicacion del frame
         if self.img is None:
             self.get_logger().info('Esperando imagen...')
             return

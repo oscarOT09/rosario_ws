@@ -1,6 +1,7 @@
-# Nodo identificador de colores | Half-Term Challenge
+# Nodo identificador de linea | Final-Term Challenge
 # Equipo ROSario
 
+# Importaciones necesarias
 import rclpy
 import cv2
 import numpy as np
@@ -17,6 +18,7 @@ class lineDetector(Node):
     def __init__(self):
         super().__init__('lineDetector_node')
 
+        # Declaracion de Parametros dinamicos
         self.declare_parameter('cut_por', 0.85)
         self.declare_parameter('mid_por', 0.6)
         self.declare_parameter('tLower_canny', 50)
@@ -26,7 +28,7 @@ class lineDetector(Node):
         self.declare_parameter('dilate_kernel', 5)
         self.declare_parameter('iter_erode', 4)
         self.declare_parameter('iter_dilate', 2)
-        self.declare_parameter('params_ready', True)
+        self.declare_parameter('params_ready', False)
 
         self.cut_por = self.get_parameter('cut_por').value
         self.mid_por = self.get_parameter('mid_por').value
@@ -41,6 +43,7 @@ class lineDetector(Node):
         self.img = None
         self.bridge = CvBridge()
         
+        # Declaracion de Variables para el video.
         self.out = None
         
         self.video_writer_initialized = False
@@ -52,7 +55,7 @@ class lineDetector(Node):
         self.line_error_msg = Float32()
         self.line_error_pub = self.create_publisher(Float32, 'line_error', 10)
 
-        # Parameter Callback
+        # Callback de los parametros
         self.add_on_set_parameters_callback(self.parameters_callback)
 
         self.subscription = self.create_subscription(
@@ -62,6 +65,7 @@ class lineDetector(Node):
             10
         )
 
+        # Frecuencia del nodo
         self.frecuencia_loop = 15.0
         self.controller_timer = self.create_timer(1.0 / self.frecuencia_loop, self.main_loop)
 
@@ -69,74 +73,75 @@ class lineDetector(Node):
 
     def parameters_callback(self, params):
         for param in params:
-            #system gain parameter check
+            # Ganancias del sistema
             if param.name == "cut_por":
-                #check if it is negative
+                # Checar si es negativo
                 if (param.value < 0.0):
                     self.get_logger().warn("No puede ser negativo")
                     return SetParametersResult(successful=False, reason="kp cannot be negative")
                 else:
-                    self.cut_por = param.value  # Update internal variable
+                    self.cut_por = param.value  # Actualizar variable interna
                     #self.get_logger().info(f"cut updated to {self.kp}")
             elif param.name == "blur_kernel":
-                #check if it is negative
+                # Checar si es negativo
                 if (param.value < 0.0):
                     self.get_logger().warn("No puede ser negativo")
                     return SetParametersResult(successful=False, reason="ki cannot be negative")
                 else:
-                    self.blur_kernel = param.value  # Update internal variable
+                    self.blur_kernel = param.value  # Actualizar variable interna
                     #self.get_logger().info(f"ki updated to {self.ki}")
             elif param.name == "erode_kernel":
-                #check if it is negative
+                # Checar si es negativo
                 if (param.value < 0.0):
                     self.get_logger().warn("No puede ser negativo")
                     return SetParametersResult(successful=False, reason="kd cannot be negative")
                 else:
-                    self.erode_kernel = param.value  # Update internal variable
+                    self.erode_kernel = param.value  # Actualizar variable interna
                     #self.get_logger().info(f"kd updated to {self.kd}")
             elif param.name == "dilate_kernel":
-                #check if it is negative
+                # Checar si es negativo
                 if (param.value < 0.0):
                     self.get_logger().warn("No puede ser negativo")
                     return SetParametersResult(successful=False, reason="kd cannot be negative")
                 else:
-                    self.dilate_kernel = param.value  # Update internal variable
+                    self.dilate_kernel = param.value  # Actualizar variable interna
                     #self.get_logger().info(f"kd updated to {self.kd}")
             elif param.name == "iter_erode":
-                #check if it is negative
+                # Checar si es negativo
                 if (param.value < 0.0):
                     self.get_logger().warn("No puede ser negativo")
                     return SetParametersResult(successful=False, reason="kd cannot be negative")
                 else:
-                    self.iter_erode = param.value  # Update internal variable
+                    self.iter_erode = param.value  # Actualizar variable interna
                     #self.get_logger().info(f"kd updated to {self.kd}")
             elif param.name == "iter_dilate":
-                #check if it is negative
+                # Checar si es negativo
                 if (param.value < 0.0):
                     self.get_logger().warn("No puede ser negativo")
                     return SetParametersResult(successful=False, reason="kd cannot be negative")
                 else:
-                    self.iter_dilate = param.value  # Update internal variable
+                    self.iter_dilate = param.value  # Actualizar variable interna
                     #self.get_logger().info(f"kd updated to {self.kd}")
             elif param.name == "mid_por":
-                #check if it is negative
+                # Checar si es negativo
                 if (param.value < 0.0):
                     self.get_logger().warn("No puede ser negativo")
                     return SetParametersResult(successful=False, reason="kd cannot be negative")
                 else:
-                    self.mid_por = param.value  # Update internal variable
+                    self.mid_por = param.value  # Actualizar variable interna
                     #self.get_logger().info(f"kd updated to {self.kd}")
             elif param.name == "params_ready":
-                #check if it is negative
+                # Checar si es negativo
                 if (param.value < 0.0):
                     self.get_logger().warn("No puede ser negativo")
                     return SetParametersResult(successful=False, reason="kd cannot be negative")
                 else:
-                    self.params_ready = param.value  # Update internal variable
+                    self.params_ready = param.value  # Actualizar variable interna
                     #self.get_logger().info(f"kd updated to {self.kd}")
         return SetParametersResult(successful=True)
 
     def camera_callback(self, msg):
+        # Obtener los frames
         try:
             self.img = self.bridge.imgmsg_to_cv2(msg, "bgr8")
 
@@ -151,7 +156,7 @@ class lineDetector(Node):
         for centroide in midpoint_centroids:
             if centroide:
                 error = centro_x - centroide[0] #centroide[0] - centro_x
-                error_normalizado = error / (frame_width/2)  # valor entre -1 y 1
+                error_normalizado = error / (frame_width)  # valor entre -1 y 1
                 errores_normalizados.append(error_normalizado)
             else:
                 errores_normalizados.append(None)
@@ -165,7 +170,7 @@ class lineDetector(Node):
         # Ordenar por distancia al centro (valor absoluto del error)
         centroides_ordenados = sorted(centroides_validos, key=lambda x: abs(x[1]), reverse=True)
 
-        # Pesos: más lejano (0.5), medio (0.3), más cercano (0.2)
+        # Promedio de los errores
         pesos = [0.33, 0.33, 0.33]
         total_error = 0.0
 
@@ -177,24 +182,26 @@ class lineDetector(Node):
     
     def main_loop(self):
 
+        # Esperar los frames
         if self.img is None:
             self.get_logger().info('Esperando imagen...')
             return
 
+        # Si se activo desde rqt_reconfigure
         if self.params_ready:
             centroids = [None] * 6  # 2 centroides por sección vertical
 
             flip_img = cv2.flip(self.img, 0)
             flip_img = cv2.flip(flip_img, 1)
 
-            # --- Redimensionar imagen ---
+            # Redimenciona la imagen
             height, width = flip_img.shape[:2]
             if (width, height) != (self.target_width, self.target_height):
                 resized_img = cv2.resize(flip_img, (self.target_width, self.target_height))
             else:
                 resized_img = flip_img.copy()
             
-            # --- Region de interés ---
+            # Region de interés
 
             roi = resized_img[int(self.target_height * self.cut_por):, :]
             roi_height, roi_width = roi.shape[:2]
@@ -261,42 +268,17 @@ class lineDetector(Node):
                     cv2.circle(output, (mx, my), 5, (255, 0, 0), -1)
                 else:
                     midpoint_centroids.append(None)
-                    
-            # Conteo de centroides en columnas (solo para los 6 originales)
-            '''conteo_columnas = [0, 0, 0]
-            for c in centroids:
-                if c:
-                    cx, _ = c
-                    if cx < column_areas[0][1]:
-                        conteo_columnas[0] += 1
-                    elif cx < column_areas[1][1]:
-                        conteo_columnas[1] += 1
-                    else:
-                        conteo_columnas[2] += 1'''
 
-            '''# Dibujar líneas de separación de columnas
-            for x in [column_areas[0][1], column_areas[1][1]]:
-                cv2.line(output, (x, 0), (x, roi_height), (255, 255, 255), 2)  # línea blanca'''
-
-
-            '''# Mostrar conteo por columnas
-            for i, count in enumerate(conteo_columnas):
-                x_text = column_areas[i][0] + 10
-                cv2.putText(output, f"C{i+1}:{count}", (x_text, roi_height-10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)'''
-
+            # Obtener el error        
             error = self.calcular_error_ponderado(centroids, roi.shape[1])
             
-
+            # Pulicar el error
             self.line_error_msg.data = float(error)
             self.line_error_pub.publish(self.line_error_msg)
 
-            '''cv2.putText(output, f"Error: {error:.2f}", (30, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)'''
-
-            # --- COLLAGE de todo el proceso ---Add commentMore actions
             # Convertir grises a BGR para visualización conjunta
             gray_bgr = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
             #blurred_bgr = cv2.cvtColor(blurred, cv2.COLOR_GRAY2BGR)
             binary_inv_bgr = cv2.cvtColor(binary_inv, cv2.COLOR_GRAY2BGR)
             morphEro_bgr = cv2.cvtColor(morph_ero, cv2.COLOR_GRAY2BGR)
@@ -307,7 +289,6 @@ class lineDetector(Node):
             img1 = cv2.resize(resized_img, self.collage_size)
             img2 = cv2.resize(roi, self.collage_size)
             img3 = cv2.resize(gray_bgr, self.collage_size)
-            #img4 = cv2.resize(blurred_bgr, self.collage_size)
             img4 = cv2.resize(binary_inv_bgr, self.collage_size)
             img5 = cv2.resize(morphEro_bgr, self.collage_size)
             img6 = cv2.resize(morphDIL_bgr, self.collage_size)
@@ -319,9 +300,10 @@ class lineDetector(Node):
             row2 = cv2.hconcat([img5, img6, img7, img8])
             collage = cv2.vconcat([row1, row2])
 
-            # --- Creación de video de salida
+            # Creación de video de salida
             if not self.video_writer_initialized:
                 height, width, _ = output.shape
+
                 # Generar nombre dinámico: día_mes_año_hora_minuto_segundo
                 timestamp = datetime.now().strftime('%d_%m_%Y_%H_%M_%S')
                 filename = f'{timestamp}_lineDetector.mp4'
@@ -333,12 +315,12 @@ class lineDetector(Node):
                 self.video_writer_initialized = True
                 self.get_logger().info("Video para el collage")
 
-            # --- Escritura del video de salida ---
+            # Escritura del video
             if self.out:
                 self.out.write(collage)
 
     def stop_handler(self, signum, frame):
-        '''Manejo de interrupción por teclado (ctrl + c)'''
+        # Manejo de interrupción por teclado (ctrl + c)
         self.get_logger().info("Deteniendo nodo por interrupción por teclado...")
         if self.out is not None:
             self.out.release()

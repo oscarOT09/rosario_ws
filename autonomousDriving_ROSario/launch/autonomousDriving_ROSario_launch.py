@@ -1,3 +1,7 @@
+# Lanzador de la Jetson Nano | Final-Term Challenge
+# Equipo ROSario
+
+# Importaciones necesarias
 import os
 from ament_index_python.packages import get_package_share_directory
 

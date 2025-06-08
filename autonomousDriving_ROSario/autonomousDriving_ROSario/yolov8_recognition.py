@@ -6,17 +6,23 @@ from ultralytics import YOLO
 import numpy as np
 import cv2
 import os
+from datetime import datetime
 
+# Cusstom Messages
 from std_msgs.msg import Header 
 from yolo_msg.msg import InferenceResult
 from yolo_msg.msg import Yolov8Inference
-from datetime import datetime
+
 
 class YoloInference(Node):
     def __init__(self):
         super().__init__('yolo_node')
+        
+        # Cambiar dependiendo donde se ejecute
         self.model = YOLO(os.path.expanduser('~/rosario_ws/src/autonomousDriving_ROSario/models/yolov8n_rosario.v6.1.pt')).to('cuda')
-        #self.yolo_msg = Yolov8Inference()
+        #self.model = YOLO(os.path.expanduser('~/rosario_ws/src/autonomousDriving_ROSario/models/yolov8n_rosario.v6.1.pt'))
+        
+        # Inicializacion de variables
         self.img = None
         self.bridge = CvBridge()
 
@@ -24,26 +30,30 @@ class YoloInference(Node):
         self.out = None
         self.valid_img = False
 
+        # Creacion de subscriptores y publicadores
         self.sub = self.create_subscription(Image, '/jetson_frame', self.camera_callback, 10)
         self.yolo_pub = self.create_publisher(Yolov8Inference, '/Yolov8_inference', 10)
         self.yolo_img_pub = self.create_publisher(Image, '/inference_result', 10)
         
+        # Frecuencia de muestreo
         self.node_hz = 15.0
         timer_period = 1.0/self.node_hz
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
     def camera_callback(self, msg):
+        # Catch de Camara
         try:
             self.img = self.bridge.imgmsg_to_cv2(msg, "bgr8")
-            self.get_logger().info('Imagen recibida')
         except:
             self.get_logger().info('Failed to get an image')
             
     def timer_callback(self):
+        # Logs de Debuggeo
         if self.img is None:
             self.get_logger().info('Esperando imagen...')
             return
         
+        # Procesado de Image
         frame_rotate = cv2.rotate(self.img, cv2.ROTATE_180)
         results = self.model(frame_rotate)
 

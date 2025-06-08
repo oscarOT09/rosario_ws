@@ -1,7 +1,0 @@
-[console_scripts]
-controlador_prueba = close_loop_control_ROSario.controlador_prueba:main
-controller_ROSario = close_loop_control_ROSario.controller_ROSario:main
-localisation_ROSario = close_loop_control_ROSario.localisation_ROSario:main
-pathGenerator_ROSario = close_loop_control_ROSario.pathGenerator_ROSario:main
-pose_plotter = close_loop_control_ROSario.pose_plotter:main
-

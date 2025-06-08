@@ -1,3 +1,0 @@
-[console_scripts]
-puzzlebot_odometry = puzzlebot_localisation.puzzlebot_odometry:main
-

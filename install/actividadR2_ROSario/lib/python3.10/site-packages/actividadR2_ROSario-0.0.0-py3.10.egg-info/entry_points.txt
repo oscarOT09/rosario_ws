@@ -1,4 +1,0 @@
-[console_scripts]
-errors_pub_ROSario = actividadR2_ROSario.errors_pub_ROSario:main
-localisation_ROSario = actividadR2_ROSario.localisation_ROSario:main
-

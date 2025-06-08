@@ -1,6 +1,0 @@
-{
-  "package_name": "action_msg",
-  "non_idl_tuples": [
-    "/home/xyg/ros2_ws/src/action_msg:msg/YoloAction.msg"
-  ]
-}

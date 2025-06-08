@@ -1,3 +1,0 @@
-bool dotted_line
-int32 signal
-int32 traffic_light

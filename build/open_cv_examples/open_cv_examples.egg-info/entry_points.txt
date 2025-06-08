@@ -1,3 +1,0 @@
-[console_scripts]
-opencv_act1 = open_cv_examples.opencv_act1:main
-

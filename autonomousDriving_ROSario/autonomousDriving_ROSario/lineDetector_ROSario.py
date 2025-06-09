@@ -28,7 +28,7 @@ class lineDetector(Node):
         self.declare_parameter('dilate_kernel', 5)
         self.declare_parameter('iter_erode', 4)
         self.declare_parameter('iter_dilate', 2)
-        self.declare_parameter('params_ready', False)
+        self.declare_parameter('params_ready', True)
 
         self.cut_por = self.get_parameter('cut_por').value
         self.mid_por = self.get_parameter('mid_por').value
@@ -156,7 +156,7 @@ class lineDetector(Node):
         for centroide in midpoint_centroids:
             if centroide:
                 error = centro_x - centroide[0] #centroide[0] - centro_x
-                error_normalizado = error / (frame_width)  # valor entre -1 y 1
+                error_normalizado = error / (frame_width/2)  # valor entre -1 y 1
                 errores_normalizados.append(error_normalizado)
             else:
                 errores_normalizados.append(None)

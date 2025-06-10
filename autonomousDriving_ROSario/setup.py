@@ -30,7 +30,8 @@ setup(
             'trafficLightDetector_ROSario = autonomousDriving_ROSario.trafficLightDetector_ROSario:main',
             'yolov8_recognition = autonomousDriving_ROSario.yolov8_recognition:main',
             'yolo_controller_bridge = autonomousDriving_ROSario.yolo_controller_bridge:main',
-            'frames_pc_publisher = autonomousDriving_ROSario.frames_pc_publisher:main'
+            'frames_pc_publisher = autonomousDriving_ROSario.frames_pc_publisher:main',
+            'open_loop_actions = autonomousDriving_ROSario.open_loop_actions:main'
         ],
     },
 )

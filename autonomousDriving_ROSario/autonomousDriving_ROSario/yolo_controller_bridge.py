@@ -25,8 +25,8 @@ class SignalLogger(Node):
         )
 
         # Parametros Dinamicos
-        self.declare_parameter('min_signal_area', 5700)
-        self.declare_parameter('min_traffic_area', 2700)
+        self.declare_parameter('min_signal_area', 6200)
+        self.declare_parameter('min_traffic_area', 2600)
 
         # Frecuencia de publicación en Hz
         self.node_hz = 15.0

@@ -78,6 +78,9 @@ class trafficNavController(Node):
         self.paso_flag = False
         self.yellow_speed = False
 
+        self.stopSIG = False
+        self.stopTL = False
+
         self.motion_state = 0
 
         ## PUBLICADORES
@@ -166,7 +169,7 @@ class trafficNavController(Node):
 
     def control_loop(self):
         if self.controllers_ready:
-
+            self.get_logger().info(f'motion_state: {self.motion_state}, paso_flag: {self.paso_flag}, yellow_speed: {self.yellow_speed}, ')
             if self.paso_flag:
                 if not self.yoloRec_msg.verde: # Espera a ver semáforo en verde
                     self.get_logger().info('Estado de cruce, esperanco semaforo verde...')
@@ -193,7 +196,7 @@ class trafficNavController(Node):
             self.motion_state = self.decidir_accion()
 
             if self.motion_state == 0: # Estado de reposo
-                
+                self.reposo()
                 if not self.yoloRec_msg.verde: # Si se detuvo por semáforo en rojo
                     return
                 elif self.yoloRec_msg.alto: # Si se detuvo por señal STOP
@@ -238,7 +241,7 @@ class trafficNavController(Node):
             motion_state = 1
         elif (self.yoloRec_msg.rojo or self.yoloRec_msg.alto):
             motion_state = 0
-            self.reposo()
+            
             if self.yoloRec_msg.rojo: # Si se detuvo por semáforo en rojo
                 self.get_logger().info('Estado de reposo por semaforo rojo')
                 self.speed_efect = self.linear_speed
@@ -295,8 +298,8 @@ class trafficNavController(Node):
                 self.get_logger().info("Función de turn_right")
             
             self.state_start_time = self.get_clock().now()
-            self.forward_time = round(self.dist_goal * 0.9, 2) / self.linear_speed_open   # Tiempo de movimiento lineal
-            self.rotate_time =  round(self.ang_goal * 0.85, 2) / abs(self.angular_speed_open) # Tiempo de movimiento rotacional
+            self.forward_time = round(self.dist_goal * 0.95, 2) / self.linear_speed_open   # Tiempo de movimiento lineal
+            self.rotate_time =  round(self.ang_goal * 0.84, 2) / abs(self.angular_speed_open) # Tiempo de movimiento rotacional
             self.angular_speed_open = abs(self.angular_speed_open) * direction
             self.setup_turn = True
             self.paso_flag = False
@@ -330,6 +333,7 @@ class trafficNavController(Node):
             if elapsed_time >= self.rotate_time:
                 self.openLoop_state = 0
                 self.openLoop_cont += 1
+                self.forward_time = round(0.05 * 0.9, 2) / self.linear_speed_open
                 self.state_start_time = self.get_clock().now() #self.state_start_time = now
                 #self.get_logger().info('Finished rotation...')
 
@@ -350,7 +354,7 @@ class trafficNavController(Node):
         if not self.setup_ahead:     
             self.get_logger().info("Función de ahead_only")
             self.state_start_time = self.get_clock().now()
-            self.forward_time = round(self.dist_goal * 1.2, 2) / self.linear_speed_open   # Tiempo de movimiento lineal
+            self.forward_time = round(self.dist_goal * 1.1, 2) / self.linear_speed_open   # Tiempo de movimiento lineal
             self.setup_ahead = True
             self.paso_flag = False
         

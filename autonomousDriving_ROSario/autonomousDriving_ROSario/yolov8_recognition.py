@@ -1,3 +1,7 @@
+# Nodo identificador con YOLO | Final-Term Challenge
+# Equipo ROSario
+
+# Importaciones necesarias
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image

@@ -1,4 +1,4 @@
-# Nodo de control | Line Follower
+# Nodo de control |  Final-Term Challenge
 # Equipo ROSario
 
 # Importaciones necesarias
@@ -73,7 +73,6 @@ class trafficNavController(Node):
 
         self.setup_ahead = False
         self.iter_ahead = False
-        ####           ####
         
         self.paso_flag = False
         self.yellow_speed = False
@@ -119,51 +118,51 @@ class trafficNavController(Node):
 
     def parameters_callback(self, params):
         for param in params:
-            # System parameters check
+            # Ganancias del sistema
             if param.name == "controllers_ready":
-                self.controllers_ready = param.value  # Update internal variable
+                self.controllers_ready = param.value  # Actualizar variable interna
                 self.get_logger().info(f"controllers_ready updated to {self.controllers_ready}")
             elif param.name == "kp_ang_curv":
                 if (param.value < 0.0):
                     self.get_logger().warn("Invalid kp! It just cannot be negative.")
                     return SetParametersResult(successful=False, reason="kp cannot be negative")
                 else:
-                    self.kp_ang_curv = param.value  # Update internal variable
+                    self.kp_ang_curv = param.value  # Actualizar variable interna
                     self.get_logger().info(f"kp_ang_curv updated to {self.kp_ang_curv}")
             elif param.name == "ki_ang_curv":
                 if (param.value < 0.0):
                     self.get_logger().warn("Invalid ki! It just cannot be negative.")
                     return SetParametersResult(successful=False, reason="ki cannot be negative")
                 else:
-                    self.ki_ang_curv = param.value  # Update internal variable
+                    self.ki_ang_curv = param.value  # Actualizar variable interna
                     self.get_logger().info(f"ki_ang_curv updated to {self.ki_ang_curv}")
             elif param.name == "kd_ang_curv":
                 if (param.value < 0.0):
                     self.get_logger().warn("Invalid kd! It just cannot be negative.")
                     return SetParametersResult(successful=False, reason="kd cannot be negative")
                 else:
-                    self.kd_ang_curv = param.value  # Update internal variable
+                    self.kd_ang_curv = param.value  # Actualizar variable interna
                     self.get_logger().info(f"kd_ang_curv updated to {self.kd_ang_curv}")
             elif param.name == "linear_speed":
                 if (param.value < 0.025 and param.value > 0.37):
                     self.get_logger().warn("Invalid linear_speed! It's out of range.")
                     return SetParametersResult(successful=False, reason="linear_speed cannot be negative")
                 else:
-                    self.linear_speed = param.value  # Update internal variable
+                    self.linear_speed = param.value  # Actualizar variable interna
                     self.get_logger().info(f"linear_speed updated to {self.linear_speed}")
             elif param.name == "max_ang_vel":
                 if (param.value < 0.0):
                     self.get_logger().warn("Invalid max_ang_vel! It just cannot be negative.")
                     return SetParametersResult(successful=False, reason="max_ang_vel cannot be negative")
                 else:
-                    self.max_ang_vel = param.value  # Update internal variable
+                    self.max_ang_vel = param.value  # Actualizar variable interna
                     self.get_logger().info(f"max_ang_vel updated to {self.max_ang_vel}")
             elif param.name == "min_ang_vel":
                 if (param.value < 0.0):
                     self.get_logger().warn("Invalid min_ang_vel! It just cannot be negative.")
                     return SetParametersResult(successful=False, reason="min_ang_vel cannot be negative")
                 else:
-                    self.min_ang_vel = param.value  # Update internal variable
+                    self.min_ang_vel = param.value  # Actualizar variable interna
                     self.get_logger().info(f"min_ang_vel updated to {self.min_ang_vel}")
         return SetParametersResult(successful=True)
 

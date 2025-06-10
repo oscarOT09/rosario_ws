@@ -1,3 +1,7 @@
+# Lanzador de Yolo | Final-Term Challenge
+# Equipo ROSario
+
+# Importaciones necesarias
 import os
 from ament_index_python.packages import get_package_share_directory
 
@@ -14,12 +18,12 @@ def generate_launch_description():
                             output = 'screen'
                             )
     
-    yolo_filter = Node(
+    yolo_bridge = Node(
                             name="yoloFilter_node",
                             package="autonomousDriving_ROSario",
                             executable="yolo_controller_bridge",
                             output = 'screen'
                             )
 
-    l_d = LaunchDescription([yolo_recognition, yolo_filter])
+    l_d = LaunchDescription([yolo_recognition, yolo_bridge])
     return l_d

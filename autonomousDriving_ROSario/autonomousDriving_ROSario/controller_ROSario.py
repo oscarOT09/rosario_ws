@@ -48,12 +48,15 @@ class trafficNavController(Node):
         self.controllers_ready = self.get_parameter('controllers_ready').value
         
         # Velocidad lineal
-        self.declare_parameter('linear_speed', 0.05)
+        self.declare_parameter('linear_speed', 0.055)
         self.linear_speed = self.get_parameter('linear_speed').value # m/s
         self.speed_efect = self.linear_speed
 
+        self.linear_speed_msg = 0.0
+        self.angular_speed_msg = 0.0
+
         #### OPEN LOOP ####
-        self.angular_speed_open = 0.31
+        self.angular_speed_open = self.max_lin_vel
         self.linear_speed_open = self.linear_speed
         
         self.iter_rot = False
@@ -82,6 +85,14 @@ class trafficNavController(Node):
 
         self.motion_state = 0
 
+        ############33
+        self.trafficLight_state = 0
+        self.direction_state = 0
+        self.linear_speed_msg = 0.0
+        self.angular_speed_msg = 0.0
+        self.stop_flag = False
+        self.reduce_zone = False
+        #############33
         ## PUBLICADORES
 
         # Publicador para el tópico /cmd_vel (comunicación con el Puzzlebot)
@@ -168,94 +179,98 @@ class trafficNavController(Node):
 
     def control_loop(self):
         if self.controllers_ready:
-            self.get_logger().info(f'motion_state: {self.motion_state}, paso_flag: {self.paso_flag}, yellow_speed: {self.yellow_speed}, ')
-            if self.paso_flag:
-                if not self.yoloRec_msg.verde: # Espera a ver semáforo en verde
-                    self.get_logger().info('Estado de cruce, esperanco semaforo verde...')
-                    self.reposo()
-                    return
-            if self.iter_rot:
-                self.girar(self.turn_direction)  # Se repite hasta completar el giro
-                return  # Evita ejecutar lógica de otros estados
             
+            if self.iter_rot:
+                self.girar(self.turn_direction)
+                return
             if self.iter_ahead:
                 self.seguirAdelante()
                 return
-            
-            if self.yellow_speed:
-                if not self.yoloRec_msg.rojo:
-                    self.speed_efect *= 0.99
-                    self.twist.linear.x = max(0.0, self.speed_efect)
-                    self.twist.angular.z = self.seguir_linea()
-                    self.cmd_vel_pub.publish(self.twist)
-                    return
 
-            
-            # Verificación de estado
-            self.motion_state = self.decidir_accion()
+            # Decision de maquina de estados
+            self.decidir_accion()
 
-            if self.motion_state == 0: # Estado de reposo
-                self.reposo()
-                if not self.yoloRec_msg.verde: # Si se detuvo por semáforo en rojo
-                    return
-                elif self.yoloRec_msg.alto: # Si se detuvo por señal STOP
-                    return
-                                
-            elif self.motion_state == 1: # Estado de cruce (Lazo abierto)
-                # Ejectua acción en función de la señal de movimiento
-                if self.yoloRec_msg.adelante:
-                    self.iter_ahead = True
-                    self.turn_direction = 0
-                elif self.yoloRec_msg.girar_l:
-                    self.iter_rot = True
+            if self.trafficLight_state == 1:
+                self.linear_speed_msg = 0.0
+                self.angular_speed_msg = 0.0
+
+            elif self.trafficLight_state == 2:
+                self.yellow_speed *= 0.99
+                self.linear_speed_msg = self.yellow_speed
+                self.angular_speed_msg = self.seguir_linea()
+            
+            elif self.trafficLight_state == 3:
+                if self.direction_state == 1:
                     self.turn_direction = 1
-                elif self.yoloRec_msg.girar_r:
-                    self.iter_rot = True
+                    self.girar(self.turn_direction)
+                    return
+            
+                elif self.direction_state == 2:
                     self.turn_direction = -1
-                
-                self.paso_flag = True 
-                
-                 
-
-            elif self.motion_state == 2: # Estado de seguimiento de linea con efectos              
-                # Efectos
-                if (self.yoloRec_msg.trabajo or self.yoloRec_msg.ceder):
-                    self.get_logger().info('Estado de seguidor por senial triangular')
-                    self.twist.linear.x = max(self.min_lin_vel, self.linear_speed * 0.5)
-
+                    self.girar(self.turn_direction)
+                    return
+            
+                elif self.direction_state == 3:
+                    self.seguirAdelante()
+                    return
                 else:
-                    #self.get_logger().info('Estado de seguidor normal')
-                    self.twist.linear.x = self.linear_speed
-                    self.speed_efect = self.linear_speed
+                    self.linear_speed_msg = self.linear_speed
+                    self.angular_speed_msg = self.seguir_linea()
+            
+            else:
+                if self.stop_flag:
+                    self.linear_speed_msg = 0.0
+                    self.angular_speed_msg = 0.0
+                else:
+                    if self.reduce_zone == True:
+                        self.linear_speed_msg = self.linear_speed*0.5
+            
+                    else:
+                        self.linear_speed_msg = self.linear_speed
+            
+                    self.angular_speed_msg = self.seguir_linea()
 
-                self.twist.angular.z = self.seguir_linea()
-                self.cmd_vel_pub.publish(self.twist)
+            self.twist.linear.x = self.linear_speed_msg
+            self.twist.angular.z = self.angular_speed_msg
+            self.cmd_vel_pub.publish(self.twist)
+
         else:
             self.twist.linear.x = 0.0
             self.twist.angular.z = 0.0
             self.cmd_vel_pub.publish(self.twist)
 
     def decidir_accion(self):
-        if ((self.yoloRec_msg.rojo or self.yoloRec_msg.amarillo or self.yoloRec_msg.verde) and (self.yoloRec_msg.adelante or self.yoloRec_msg.girar_l or self.yoloRec_msg.girar_r)):
-            motion_state = 1
-        elif (self.yoloRec_msg.rojo or self.yoloRec_msg.alto):
-            motion_state = 0
-            
-            if self.yoloRec_msg.rojo: # Si se detuvo por semáforo en rojo
-                self.get_logger().info('Estado de reposo por semaforo rojo')
-                self.speed_efect = self.linear_speed
-                self.yellow_speed = False
-            elif self.yoloRec_msg.alto: # Si se detuvo por señal STOP
-                self.get_logger().info('Estado de reposo por STOP')
-            
+        # Revisa señal de giro
+        if self.yoloRec_msg.girar_l:
+            self.direction_state = 1
+        elif self.yoloRec_msg.girar_r:
+            self.direction_state = 2
+        elif self.yoloRec_msg.adelante:
+            self.direction_state = 3
         else:
-            motion_state = 2
+            self.direction_state = 0
 
-            if self.yoloRec_msg.amarillo:
-                self.get_logger().info('Estado de seguidor por amarillo, esperando semaforo rojo...')    
-                self.yellow_speed = True
+        # Maquina de estados de semaforo
+        
+        if self.yoloRec_msg.verde:
+            self.trafficLight_state = 3
+        elif self.yoloRec_msg.amarillo:
+            self.trafficLight_state = 2
+        elif self.yoloRec_msg.rojo:
+            self.trafficLight_state = 1
+        else:
+            self.trafficLight_state = 0
 
-        return motion_state
+        if self.yoloRec_msg.alto:
+            self.stop_flag = True
+        else:
+            self.stop_flag = False
+
+
+        if self.yoloRec_msg.trabajo or self.yoloRec_msg.ceder:
+            self.reduce_zone = True
+        else:
+            self.reduce_zone = False
     
     def seguir_linea(self):
         pid_output = 0.0
@@ -301,7 +316,7 @@ class trafficNavController(Node):
             self.rotate_time =  round(self.ang_goal * 0.84, 2) / abs(self.angular_speed_open) # Tiempo de movimiento rotacional
             self.angular_speed_open = abs(self.angular_speed_open) * direction
             self.setup_turn = True
-            self.paso_flag = False
+            self.iter_rot = True
         
         
         now = self.get_clock().now()
@@ -355,7 +370,7 @@ class trafficNavController(Node):
             self.state_start_time = self.get_clock().now()
             self.forward_time = round(self.dist_goal * 1.1, 2) / self.linear_speed_open   # Tiempo de movimiento lineal
             self.setup_ahead = True
-            self.paso_flag = False
+            self.iter_ahead = True
         
         now = self.get_clock().now()
         elapsed_time = (now - self.state_start_time).nanoseconds * 1e-9

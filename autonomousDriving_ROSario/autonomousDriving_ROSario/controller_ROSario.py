@@ -52,6 +52,12 @@ class trafficNavController(Node):
         self.linear_speed = self.get_parameter('linear_speed').value # m/s
         self.speed_efect = self.linear_speed
 
+        self.declare_parameter('yellow_decrement', 0.01)
+        self.yellow_decrement = self.get_parameter('yellow_decrement').value
+
+        self.declare_parameter('num_cont_stop', 15)
+        self.num_cont_stop = self.get_parameter('num_cont_stop').value
+
         self.linear_speed_msg = 0.0
         self.angular_speed_msg = 0.0
 
@@ -78,7 +84,7 @@ class trafficNavController(Node):
         self.iter_ahead = False
         
         self.paso_flag = False
-        self.yellow_speed = False
+        self.yellow_speed = 0.0
 
         self.stopSIG = False
         self.stopTL = False
@@ -92,6 +98,8 @@ class trafficNavController(Node):
         self.angular_speed_msg = 0.0
         self.stop_flag = False
         self.reduce_zone = False
+        self.stop_cont = False
+        self.cont_stop = 0
         #############33
         ## PUBLICADORES
 
@@ -161,6 +169,20 @@ class trafficNavController(Node):
                 else:
                     self.linear_speed = param.value  # Actualizar variable interna
                     self.get_logger().info(f"linear_speed updated to {self.linear_speed}")
+            elif param.name == "yellow_decrement":
+                if (param.value < 0.0):
+                    self.get_logger().warn("Invalid yellow_decrement! It's out of range.")
+                    return SetParametersResult(successful=False, reason="yellow_decrement cannot be negative")
+                else:
+                    self.yellow_decrement = param.value  # Actualizar variable interna
+                    self.get_logger().info(f"yellow_decrement updated to {self.yellow_decrement}")
+            elif param.name == "num_cont_stop":
+                if (param.value < 0):
+                    self.get_logger().warn("Invalid num_cont_stop! It's out of range.")
+                    return SetParametersResult(successful=False, reason="num_cont_stop cannot be negative")
+                else:
+                    self.num_cont_stop = param.value  # Actualizar variable interna
+                    self.get_logger().info(f"num_cont_stop updated to {self.num_cont_stop}")
             elif param.name == "max_ang_vel":
                 if (param.value < 0.0):
                     self.get_logger().warn("Invalid max_ang_vel! It just cannot be negative.")
@@ -179,24 +201,33 @@ class trafficNavController(Node):
 
     def control_loop(self):
         if self.controllers_ready:
-            
+
+            if self.stop_cont:
+                if self.cont_stop < self.num_cont_stop:
+                    self.cont_stop += 1
+                    return
+                else:
+                    self.cont_stop = 0
+                    self.stop_cont = False
+
             if self.iter_rot:
                 self.girar(self.turn_direction)
                 return
             if self.iter_ahead:
                 self.seguirAdelante()
                 return
-
+            self.get_logger().info(f'[MSG] alto: {self.yoloRec_msg.alto}, rojo: {self.yoloRec_msg.rojo}, amarillo: {self.yoloRec_msg.amarillo}, verde: {self.yoloRec_msg.verde}, adelante: {self.yoloRec_msg.adelante}, girar_l: {self.yoloRec_msg.girar_l}, girar_r: {self.yoloRec_msg.girar_r}, trabajo: {self.yoloRec_msg.trabajo}, ceder: {self.yoloRec_msg.ceder}')
             # Decision de maquina de estados
             self.decidir_accion()
 
             if self.trafficLight_state == 1:
                 self.linear_speed_msg = 0.0
                 self.angular_speed_msg = 0.0
+                self.yellow_speed = self.linear_speed
 
             elif self.trafficLight_state == 2:
-                self.yellow_speed *= 0.99
-                self.linear_speed_msg = self.yellow_speed
+                self.yellow_speed *= (1.0-self.yellow_decrement)
+                self.linear_speed_msg = max(self.min_lin_vel, self.yellow_speed)
                 self.angular_speed_msg = self.seguir_linea()
             
             elif self.trafficLight_state == 3:
@@ -221,6 +252,7 @@ class trafficNavController(Node):
                 if self.stop_flag:
                     self.linear_speed_msg = 0.0
                     self.angular_speed_msg = 0.0
+                    self.stop_cont = True
                 else:
                     if self.reduce_zone == True:
                         self.linear_speed_msg = self.linear_speed*0.5
@@ -247,8 +279,7 @@ class trafficNavController(Node):
             self.direction_state = 2
         elif self.yoloRec_msg.adelante:
             self.direction_state = 3
-        else:
-            self.direction_state = 0
+            
 
         # Maquina de estados de semaforo
         
@@ -355,6 +386,7 @@ class trafficNavController(Node):
         elif self.openLoop_state == 3:
             self.openLoop_state = 0
             self.openLoop_cont = 0
+            self.direction_state = 0
             self.iter_rot = False
             self.setup_turn = False
             self.twist.linear.x = 0.0
@@ -392,6 +424,7 @@ class trafficNavController(Node):
             self.openLoop_state = 0
             self.iter_ahead = False
             self.setup_ahead = False
+            self.direction_state = 0
             self.twist.linear.x = 0.0
             self.twist.angular.z = 0.0
             self.get_logger().info('Movimiento finalizado.')

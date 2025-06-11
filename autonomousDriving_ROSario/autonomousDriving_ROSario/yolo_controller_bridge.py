@@ -30,7 +30,7 @@ class SignalLogger(Node):
 
         # Parametros Dinamicos
         self.declare_parameter('min_signal_area', 6200)
-        self.declare_parameter('min_traffic_area', 2600)
+        self.declare_parameter('min_traffic_area', 1400)
 
         # Frecuencia de publicación en Hz
         self.node_hz = 15.0
@@ -87,7 +87,13 @@ class SignalLogger(Node):
             w = det.right - det.left
             h = det.bottom - det.top
             area = w * h
-            self.get_logger().info(f'Recibido: {cls} con area: {area}')
+            accur = det.accuracy
+            
+            
+            if accur < 0.5:
+                continue
+
+            self.get_logger().info(f'Recibido: {cls} con accur: {accur}')
             if cls in SIGNALS:
                 if area > max_signal_area:
                     max_signal_area = area

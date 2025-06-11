@@ -23,7 +23,7 @@ class YoloInference(Node):
         super().__init__('yolo_node')
         
         # Cambiar dependiendo donde se ejecute
-        self.model = YOLO(os.path.expanduser('~/rosario_ws/src/autonomousDriving_ROSario/models/yolov8n_rosario.v6.1.pt')).to('cuda')
+        self.model = YOLO(os.path.expanduser('~/rosario_ws/src/autonomousDriving_ROSario/models/yolov8n_rosario.v7.1.pt')).to('cuda')
         #self.model = YOLO(os.path.expanduser('~/rosario_ws/src/autonomousDriving_ROSario/models/yolov8n_rosario.v6.1.pt'))
         
         # Inicializacion de variables
@@ -73,11 +73,13 @@ class YoloInference(Node):
                 inference_result = InferenceResult()
                 b = box.xyxy[0].to('cpu').detach().numpy().copy()
                 c = box.cls
+                conf = box.conf.item()
                 inference_result.class_name = self.model.names[int(c)]
                 inference_result.top = int(b[1])     # y1
                 inference_result.left = int(b[0])    # x1
                 inference_result.bottom = int(b[3])  # y2
                 inference_result.right = int(b[2])   # x2
+                inference_result.accuracy = float(conf)
                 self.yolo_msg.yolov8_inference.append(inference_result)
 
         # Dibujar resultado
@@ -97,7 +99,7 @@ class YoloInference(Node):
             self.out.write(frame)
 
         # Publicar imagen y resultados
-        self.yolo_img_pub.publish(self.bridge.cv2_to_imgmsg(frame, encoding='bgr8'))
+        #self.yolo_img_pub.publish(self.bridge.cv2_to_imgmsg(frame, encoding='bgr8'))
         self.yolo_pub.publish(self.yolo_msg)
 
 def main(args=None):

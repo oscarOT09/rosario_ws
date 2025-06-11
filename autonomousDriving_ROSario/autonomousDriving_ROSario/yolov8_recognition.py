@@ -40,7 +40,7 @@ class YoloInference(Node):
         self.yolo_img_pub = self.create_publisher(Image, '/inference_result', 10)
         
         # Frecuencia de muestreo
-        self.node_hz = 15.0
+        self.node_hz = 10.0
         timer_period = 1.0/self.node_hz
         self.timer = self.create_timer(timer_period, self.timer_callback)
 

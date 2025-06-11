@@ -18,7 +18,7 @@ class trafficNavController(Node):
         super().__init__('controller_node')
         
         # Muestreo
-        frecuencia_controlador = 15.0
+        frecuencia_controlador = 10.0
 
         self.declare_parameter('max_ang_vel', 0.8)
         self.declare_parameter('min_ang_vel', 0.25)

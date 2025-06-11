@@ -66,7 +66,7 @@ class lineDetector(Node):
         )
 
         # Frecuencia del nodo
-        self.frecuencia_loop = 15.0
+        self.frecuencia_loop = 10.0
         self.controller_timer = self.create_timer(1.0 / self.frecuencia_loop, self.main_loop)
 
         self.get_logger().info('Line Detector initialized!')

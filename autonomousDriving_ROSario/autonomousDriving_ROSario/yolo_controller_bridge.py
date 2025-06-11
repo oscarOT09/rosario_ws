@@ -33,7 +33,7 @@ class SignalLogger(Node):
         self.declare_parameter('min_traffic_area', 1400)
 
         # Frecuencia de publicación en Hz
-        self.node_hz = 15.0
+        self.node_hz = 10.0
         self.timer = self.create_timer(1.0 / self.node_hz, self.timer_callback)
 
         # Variable que guarda las detecciones más recientes
@@ -93,7 +93,7 @@ class SignalLogger(Node):
             if accur < 0.5:
                 continue
 
-            self.get_logger().info(f'Recibido: {cls} con accur: {accur}')
+            #self.get_logger().info(f'Recibido: {cls} con accur: {accur}')
             if cls in SIGNALS:
                 if area > max_signal_area:
                     max_signal_area = area

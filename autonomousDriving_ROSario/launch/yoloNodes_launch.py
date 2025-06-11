@@ -24,6 +24,12 @@ def generate_launch_description():
                             executable="yolo_controller_bridge",
                             output = 'screen'
                             )
+    
+    delayed_node = TimerAction(
+                                period=10.0,
+                                actions=[yolo_bridge]
+                               )
+    
 
-    l_d = LaunchDescription([yolo_recognition, yolo_bridge])
+    l_d = LaunchDescription([yolo_recognition, delayed_node])
     return l_d

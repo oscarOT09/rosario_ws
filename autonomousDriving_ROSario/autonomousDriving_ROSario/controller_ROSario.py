@@ -48,9 +48,15 @@ class trafficNavController(Node):
         self.controllers_ready = self.get_parameter('controllers_ready').value
         
         # Velocidad lineal
-        self.declare_parameter('linear_speed', 0.055)
+        self.declare_parameter('linear_speed', 0.05)
         self.linear_speed = self.get_parameter('linear_speed').value # m/s
         self.speed_efect = self.linear_speed
+
+        self.declare_parameter('ahead_lin_por', 1.14)
+        self.ahead_lin_por = self.get_parameter('ahead_lin_por').value
+
+        self.declare_parameter('corr_dir', 0.0)
+        self.corr_dir = self.get_parameter('corr_dir').value
 
         self.declare_parameter('yellow_decrement', 0.01)
         self.yellow_decrement = self.get_parameter('yellow_decrement').value
@@ -183,6 +189,16 @@ class trafficNavController(Node):
                 else:
                     self.num_cont_stop = param.value  # Actualizar variable interna
                     self.get_logger().info(f"num_cont_stop updated to {self.num_cont_stop}")
+            elif param.name == "ahead_lin_por":
+                if (param.value < 0):
+                    self.get_logger().warn("Invalid ahead_lin_por! It's out of range.")
+                    return SetParametersResult(successful=False, reason="ahead_lin_por cannot be negative")
+                else:
+                    self.ahead_lin_por = param.value  # Actualizar variable interna
+                    self.get_logger().info(f"ahead_lin_por updated to {self.ahead_lin_por}")
+            elif param.name == "corr_dir":
+                self.corr_dir = param.value  # Actualizar variable interna
+                self.get_logger().info(f"corr_dir updated to {self.corr_dir}")
             elif param.name == "max_ang_vel":
                 if (param.value < 0.0):
                     self.get_logger().warn("Invalid max_ang_vel! It just cannot be negative.")
@@ -343,8 +359,8 @@ class trafficNavController(Node):
                 self.get_logger().info("Función de turn_right")
             
             self.state_start_time = self.get_clock().now()
-            self.forward_time = round(self.dist_goal * 0.95, 2) / self.linear_speed_open   # Tiempo de movimiento lineal
-            self.rotate_time =  round(self.ang_goal * 0.84, 2) / abs(self.angular_speed_open) # Tiempo de movimiento rotacional
+            self.forward_time = round(self.dist_goal * self.ahead_lin_por, 2) / self.linear_speed_open   # Tiempo de movimiento lineal
+            self.rotate_time =  round(self.ang_goal * 0.86, 2) / abs(self.angular_speed_open) # Tiempo de movimiento rotacional
             self.angular_speed_open = abs(self.angular_speed_open) * direction
             self.setup_turn = True
             self.iter_rot = True
@@ -411,7 +427,7 @@ class trafficNavController(Node):
         # Estado de movimiento lineal
         if self.openLoop_state == 0:
             self.twist.linear.x = self.linear_speed_open
-            self.twist.angular.z = 0.0
+            self.twist.angular.z = self.corr_dir*0.021
             #self.get_logger().info('Moving forward...')
             
             if elapsed_time >= self.forward_time:

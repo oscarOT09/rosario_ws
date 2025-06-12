@@ -10,7 +10,7 @@ import signal
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, Bool
 from datetime import datetime
 from rcl_interfaces.msg import SetParametersResult
 
@@ -54,6 +54,9 @@ class lineDetector(Node):
         
         self.line_error_msg = Float32()
         self.line_error_pub = self.create_publisher(Float32, 'line_error', 10)
+
+        #self.line_inter_msg = Bool()
+        #self.line_inter_pub = self.create_publisher(Bool, 'intersection', 10)
 
         # Callback de los parametros
         self.add_on_set_parameters_callback(self.parameters_callback)
@@ -255,7 +258,13 @@ class lineDetector(Node):
 
                 cv2.drawContours(output[start_y:end_y], contours, -1, (0, 255, 0), 2)
 
-            
+            '''if centroids[0] is None and centroids[1] is None:
+                self.line_inter_msg.data = True
+                
+            else:
+                self.line_inter_msg.data = False
+
+            self.line_inter_pub.publish(self.line_inter_msg)'''
 
             # Calcular punto medio de cada par (por sección)
             midpoint_centroids = []

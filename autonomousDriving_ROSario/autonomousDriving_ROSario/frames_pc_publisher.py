@@ -25,7 +25,7 @@ class framesPublisher(Node):
         self.frame_pub = self.create_publisher(Image, '/jetson_frame', 10)
         
         # Frecuencia del Nodo
-        self.node_hz = 15.0
+        self.node_hz = 10.0
         timer_period = 1.0/self.node_hz
         self.timer = self.create_timer(timer_period, self.frames2pc_pub)
 

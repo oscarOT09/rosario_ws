@@ -29,8 +29,8 @@ class SignalLogger(Node):
         )
 
         # Parametros Dinamicos
-        self.declare_parameter('min_signal_area', 6200)
-        self.declare_parameter('min_traffic_area', 1400)
+        self.declare_parameter('min_signal_area', 5300)
+        self.declare_parameter('min_traffic_area', 1500)
 
         # Frecuencia de publicación en Hz
         self.node_hz = 10.0
@@ -51,7 +51,7 @@ class SignalLogger(Node):
 
         # Si no hay detecciones, publicar mensaje vacío
         if not self.last_detections:
-            self.get_logger().info("Sin detecciones: enviando acción nula.")
+            #self.get_logger().info("Sin detecciones: enviando acción nula.")
             self.action_pub.publish(action_msg)
             return
         
@@ -94,6 +94,7 @@ class SignalLogger(Node):
                 continue
 
             #self.get_logger().info(f'Recibido: {cls} con accur: {accur}')
+            self.get_logger().info(f'Recibido: {cls} con area: {area}')
             if cls in SIGNALS:
                 if area > max_signal_area:
                     max_signal_area = area
@@ -123,10 +124,10 @@ class SignalLogger(Node):
         # Logs de Debuggeo
         if final_signal:
             name = list(SIGNALS.keys())[list(SIGNALS.values()).index(final_signal)]
-            self.get_logger().info(f"Señal seleccionada: {name} (área {max_signal_area})")
+            #self.get_logger().info(f"Señal seleccionada: {name} (área {max_signal_area})")
         if final_traffic:
             name = list(TRAFFIC_LIGHTS.keys())[list(TRAFFIC_LIGHTS.values()).index(final_traffic)]
-            self.get_logger().info(f"Semáforo seleccionado: {name} (área {max_traffic_area})")
+            #self.get_logger().info(f"Semáforo seleccionado: {name} (área {max_traffic_area})")
 
         # Reiniciar detecciones tras publicarlas (opcional)
         self.last_detections = []

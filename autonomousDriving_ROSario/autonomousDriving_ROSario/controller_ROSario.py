@@ -9,7 +9,7 @@ import signal
 
 from rcl_interfaces.msg import SetParametersResult
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32, Bool
 from action_msg.msg import YoloAction
 
 # Definición de la clase
@@ -48,7 +48,7 @@ class trafficNavController(Node):
         self.controllers_ready = self.get_parameter('controllers_ready').value
         
         # Velocidad lineal
-        self.declare_parameter('linear_speed', 0.05)
+        self.declare_parameter('linear_speed', 0.075)
         self.linear_speed = self.get_parameter('linear_speed').value # m/s
         self.speed_efect = self.linear_speed
 
@@ -122,10 +122,13 @@ class trafficNavController(Node):
         # Suscriptor para el tópico /pose (comunicación con el nodo Path Generator)
         self.lineDetect_sub = self.create_subscription(Float32, 'line_error', self.lineDetector_callback, 10)
         self.error_linea = 0.0
-
+        
         # Suscriptor para el tópico /action (cominucación con identificaciones de YOLO)
         self.action_sub = self.create_subscription(YoloAction, 'action', self.action_callback, 10)
         self.yoloRec_msg = YoloAction()
+
+        self.lineDetect_sub = self.create_subscription(Bool, 'intersection', self.intersection_callback, 10)
+        self.inter_flag = False
 
         ## Parameter Callback
         self.add_on_set_parameters_callback(self.parameters_callback)
@@ -140,6 +143,9 @@ class trafficNavController(Node):
 
     def action_callback(self, msg):
         self.yoloRec_msg = msg
+    
+    def intersection_callback(self, msg):
+        self.inter_flag = msg.data
 
     def parameters_callback(self, params):
         for param in params:
@@ -247,19 +253,23 @@ class trafficNavController(Node):
                 self.angular_speed_msg = self.seguir_linea()
             
             elif self.trafficLight_state == 3:
-                if self.direction_state == 1:
-                    self.turn_direction = 1
-                    self.girar(self.turn_direction)
-                    return
-            
-                elif self.direction_state == 2:
-                    self.turn_direction = -1
-                    self.girar(self.turn_direction)
-                    return
-            
-                elif self.direction_state == 3:
-                    self.seguirAdelante()
-                    return
+                if self.inter_flag:
+                    if self.direction_state == 1:
+                        self.turn_direction = 1
+                        self.girar(self.turn_direction)
+                        return
+                
+                    elif self.direction_state == 2:
+                        self.turn_direction = -1
+                        self.girar(self.turn_direction)
+                        return
+                
+                    elif self.direction_state == 3:
+                        self.seguirAdelante()
+                        return
+                    else:
+                        self.linear_speed_msg = self.linear_speed
+                        self.angular_speed_msg = self.seguir_linea()
                 else:
                     self.linear_speed_msg = self.linear_speed
                     self.angular_speed_msg = self.seguir_linea()
